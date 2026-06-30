@@ -314,7 +314,7 @@ def ica_clean_regression(
     ica : mne.preprocessing.ICA
         Fitted ICA object with ``.exclude`` populated.
     """
-    r_ic = raw.copy().crop(tmin=tmin, tmax=tmax).filter(*bandpass)
+    r_ic = raw.copy().crop(tmin=tmin, tmax=tmax).rereference().filter(*bandpass)
     ica = ICA(n_components=components).fit(r_ic, decim=decim)
 
     eog_indices = mne.pick_types(raw.info, meg=False, eeg=False, eog=True)
@@ -409,7 +409,7 @@ def preprocess_raw(
     # Work on a private copy so the caller's raw is never mutated. The copy is
     # unconditional — non-mutation is a library invariant independent of which
     # steps run.
-    raw = raw.copy()
+    raw = raw.copy().load_data()
     bad_channels: list[str] = []
     ica_obj: ICA | None = None
 
@@ -426,7 +426,10 @@ def preprocess_raw(
         bad_channels = list(raw.info["bads"])
         raw = interpolate_bads(raw)
 
-    # 3. ICA on the cleaned continuous raw. ica_strategy=None skips ICA;
+    # 3. Set preliminary average EEG reference
+    raw.set_eeg_reference()
+
+    # 4. ICA on the cleaned continuous raw. ica_strategy=None skips ICA;
     #    an unrecognised string is still an error (None != invalid strategy).
     if ica_strategy is not None:
         if ica_strategy == "mne-icalabel":

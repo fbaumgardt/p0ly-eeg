@@ -11,6 +11,7 @@ from mne_icalabel import label_components
 
 from p0ly_utils.preprocessing import (
     _minmax_zscore,
+    _resolve_fit_window,
     artefact_rejection,
     fix_channels,
     ica_clean_dnn,
@@ -280,16 +281,21 @@ class TestIcaCleanDnn:
         _ = ica_clean_dnn(long_raw)
         np.testing.assert_array_equal(long_raw.get_data(), orig_data)
 
-    def test_duration_float_centered_crop(self, long_raw):
-        cleaned, ica = ica_clean_dnn(long_raw, duration=30.0)
+    def test_fit_window_float_centered_crop(self, long_raw):
+        cleaned, ica = ica_clean_dnn(long_raw, fit_window=30.0)
         assert ica.n_iter_ is not None
 
-    def test_duration_tuple_crop(self, long_raw):
-        cleaned, ica = ica_clean_dnn(long_raw, duration=(5.0, 55.0))
+    def test_fit_window_tuple_crop(self, long_raw):
+        cleaned, ica = ica_clean_dnn(long_raw, fit_window=(5.0, 55.0))
         assert ica.n_iter_ is not None
 
-    def test_duration_none_uses_full(self, long_raw):
-        cleaned, ica = ica_clean_dnn(long_raw, duration=None)
+    def test_fit_window_list_crop(self, long_raw):
+        # The list form is what YAML config round-trips [tmin, tmax] to.
+        cleaned, ica = ica_clean_dnn(long_raw, fit_window=[5.0, 55.0])
+        assert ica.n_iter_ is not None
+
+    def test_fit_window_none_uses_full(self, long_raw):
+        cleaned, ica = ica_clean_dnn(long_raw, fit_window=None)
         assert ica.n_iter_ is not None
 
     def test_exclude_components_empty(self, long_raw):
@@ -362,8 +368,13 @@ class TestIcaCleanRegression:
         _, ica = ica_clean_regression(raw, components=10)
         assert ica.exclude == []
 
-    def test_tmin_tmax_restricts_fit(self, raw_with_eog):
-        _, ica = ica_clean_regression(raw_with_eog, components=10, tmin=5.0, tmax=50.0)
+    def test_fit_window_tuple_restricts_fit(self, raw_with_eog):
+        _, ica = ica_clean_regression(raw_with_eog, components=10, fit_window=(5.0, 50.0))
+        assert ica.n_iter_ is not None
+
+    def test_fit_window_float_centered(self, raw_with_eog):
+        # Regression previously could not take a centred window; now it can.
+        _, ica = ica_clean_regression(raw_with_eog, components=10, fit_window=30.0)
         assert ica.n_iter_ is not None
 
 
@@ -482,8 +493,9 @@ class TestPreprocessRawOptional:
         assert isinstance(cleaned, mne.io.BaseRaw)
         assert bad_channels == []
         assert ica is None
-        # no step ran: data identical, no bad-interval annotations
-        np.testing.assert_array_equal(cleaned.get_data(), raw.get_data())
+        # only the preliminary average reference ran — a numerical no-op on an
+        # already-referenced fixture (float noise only), no bad-interval annotations
+        np.testing.assert_allclose(cleaned.get_data(), raw.get_data())
         assert all(d != "bad_minmax_zscore" for d in cleaned.annotations.description)
 
     def test_all_none_does_not_mutate_input(self, raw):
@@ -514,7 +526,7 @@ class TestPreprocessRawOptional:
 
     def test_filter_both_none_skips_filter(self, raw):
         cleaned, _, _ = preprocess_raw(raw, l_freq=None, h_freq=None)
-        np.testing.assert_array_equal(cleaned.get_data(), raw.get_data())
+        np.testing.assert_allclose(cleaned.get_data(), raw.get_data())
 
     def test_bad_channels_only_flags_and_interpolates(self):
         # Outlier channel -> flagged + interpolated; no filter/ICA/annotations.
@@ -532,7 +544,7 @@ class TestPreprocessRawOptional:
         )
         assert bad_channels == []
         assert ica is None
-        np.testing.assert_array_equal(cleaned.get_data(), raw.get_data())
+        np.testing.assert_allclose(cleaned.get_data(), raw.get_data())
 
     def test_ica_strategy_none_skips_ica_returns_none(self, raw, caplog):
         # With ICA skipped the run should be fast, emit no 'Fitting ICA' log,
@@ -587,3 +599,106 @@ class TestPreprocessRawOptional:
         )
         descs = list(cleaned.annotations.description)
         assert "bad_minmax_zscore" in descs
+
+
+# ---------------------------------------------------------------------------
+# _resolve_fit_window / preprocess_raw ica_fit_window (US-022)
+# ---------------------------------------------------------------------------
+
+
+class TestResolveFitWindow:
+    @pytest.fixture
+    def raw(self):
+        # 10 s at 256 Hz; times run [0, 10). Midpoint = 5.0.
+        return _make_raw(n_channels=4, duration=10.0, sfreq=256.0)
+
+    def test_none_returns_none(self, raw):
+        assert _resolve_fit_window(raw, None) is None
+
+    def test_float_centers_on_midpoint(self, raw):
+        # Centred on the time-axis midpoint (raw.times[-1] is the last SAMPLE
+        # time, not the duration): mid = (times[0] + times[-1]) / 2.
+        mid = (raw.times[0] + raw.times[-1]) / 2.0
+        tmin, tmax = _resolve_fit_window(raw, 4.0)
+        np.testing.assert_allclose([tmin, tmax], [mid - 2.0, mid + 2.0], atol=1e-9)
+
+    def test_tuple_passthrough(self, raw):
+        tmin, tmax = _resolve_fit_window(raw, (1.0, 9.0))
+        assert (tmin, tmax) == (1.0, 9.0)
+
+    def test_list_passthrough(self, raw):
+        # YAML config round-trips [tmin, tmax] to a list.
+        tmin, tmax = _resolve_fit_window(raw, [1.0, 9.0])
+        assert (tmin, tmax) == (1.0, 9.0)
+
+    def test_negative_float_raises(self, raw):
+        with pytest.raises(ValueError, match="non-negative"):
+            _resolve_fit_window(raw, -2.0)
+
+    def test_inverted_tuple_raises(self, raw):
+        with pytest.raises(ValueError, match="tmin < tmax"):
+            _resolve_fit_window(raw, (7.0, 3.0))
+
+    def test_equal_bounds_raise(self, raw):
+        with pytest.raises(ValueError, match="tmin < tmax"):
+            _resolve_fit_window(raw, (5.0, 5.0))
+
+    def test_wrong_arity_raises(self, raw):
+        with pytest.raises(ValueError, match="arity"):
+            _resolve_fit_window(raw, (1.0, 2.0, 3.0))
+
+
+# ---------------------------------------------------------------------------
+# preprocess_raw (orchestrator: ica_fit_window is a pure pass-through)
+# ---------------------------------------------------------------------------
+
+
+class TestPreprocessRawIcaFitWindow:
+    @pytest.fixture
+    def raw(self):
+        # Montage is applied (preprocess_raw asserts it). Enough data for ICA.
+        return _make_raw(n_channels=20, duration=60.0, sfreq=256.0).set_eeg_reference()
+
+    def test_ica_skipped_ignores_fit_window(self, raw):
+        # ica_strategy=None -> no ICA-fit copy is built, so fit_window is moot.
+        cleaned, bads, ica = preprocess_raw(
+            raw, ica_strategy=None, ica_fit_window=30.0
+        )
+        assert ica is None
+        # Output spans the full recording (no crop anywhere).
+        n_full = raw.get_data().shape[1]
+        assert cleaned.get_data().shape[1] == n_full
+
+    def test_dnn_float_fit_window_runs(self, raw):
+        cleaned, _bads, ica = preprocess_raw(
+            raw, ica_strategy="mne-icalabel", ica_fit_window=30.0
+        )
+        assert ica is not None
+        assert ica.n_iter_ is not None
+        # Cleaned output spans the FULL recording; crop is fit-only.
+        n_full = raw.get_data().shape[1]
+        assert cleaned.get_data().shape[1] == n_full
+
+    def test_dnn_tuple_fit_window_runs(self, raw):
+        cleaned, _bads, ica = preprocess_raw(
+            raw, ica_strategy="mne-icalabel", ica_fit_window=(5.0, 55.0)
+        )
+        assert ica is not None
+        assert ica.n_iter_ is not None
+        assert cleaned.get_data().shape[1] == raw.get_data().shape[1]
+
+    def test_regression_fit_window_runs(self, raw):
+        cleaned, _bads, ica = preprocess_raw(
+            raw, ica_strategy="find_bads_eog", ica_fit_window=30.0
+        )
+        assert ica is not None
+        assert ica.n_iter_ is not None
+        assert cleaned.get_data().shape[1] == raw.get_data().shape[1]
+
+    def test_validation_negative_float_propagates(self, raw):
+        with pytest.raises(ValueError, match="non-negative"):
+            preprocess_raw(raw, ica_strategy="mne-icalabel", ica_fit_window=-5.0)
+
+    def test_validation_inverted_tuple_propagates(self, raw):
+        with pytest.raises(ValueError, match="tmin < tmax"):
+            preprocess_raw(raw, ica_strategy="mne-icalabel", ica_fit_window=(55.0, 5.0))

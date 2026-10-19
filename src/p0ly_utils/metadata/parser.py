@@ -206,6 +206,52 @@ def _merge_csv(
     return df
 
 
+def _empty_result(spec: ExperimentSpec) -> pd.DataFrame:
+    """Zero-row frame carrying the full column set :func:`_extract_row` produces.
+
+    An event-less recording is legitimate (no markers → no trials), but the
+    result must stay *typed*: a bare ``pd.DataFrame([])`` has zero columns, so
+    ``to_csv`` writes no header and the consumer dies in ``read_csv`` with
+    ``EmptyDataError: No columns to parse from file``. Building the columns in
+    ``_extract_row`` order keeps an empty run column-identical to a populated
+    one (SCHEMA §2).
+
+    Parameters
+    ----------
+    spec : ExperimentSpec
+        Experiment spec whose ``columns`` / ``rt_defs`` define the schema.
+
+    Returns
+    -------
+    pd.DataFrame
+        Frame with ``Block`` / ``Trial`` / ``Onset``, the non-derived spec
+        columns, the reaction-time measures, then the derived columns — and
+        zero rows.
+    """
+    columns = ["Block", "Trial", "Onset"]
+    columns += [
+        name for name, extractor in spec.columns.items() if not isinstance(extractor, DerivedColumn)
+    ]
+    columns += [rt_def.name for rt_def in spec.rt_defs]
+    columns += [
+        name for name, extractor in spec.columns.items() if isinstance(extractor, DerivedColumn)
+    ]
+    # Expander specs (:class:`ExpandOnEvent`) extend each row with the selection
+    # bookkeeping columns and one column per per-event extractor.
+    if spec.trial_expander is not None:
+        columns += ["RT_Select", "Num_Sel", "Total_Sel"]
+        columns += list(spec.trial_expander.per_event_columns)
+    # A spec column may shadow a base key (simonfb declares its own "Block");
+    # the populated path writes into the same dict key, so dedupe to match it.
+    seen: set[str] = set()
+    unique: list[str] = []
+    for name in columns:
+        if name not in seen:
+            seen.add(name)
+            unique.append(name)
+    return pd.DataFrame(columns=unique)
+
+
 def parse_metadata(
     spec: ExperimentSpec,
     df: pd.DataFrame,
@@ -221,7 +267,7 @@ def parse_metadata(
         else:
             rows.append(row)
 
-    result = pd.DataFrame(rows)
+    result = _empty_result(spec) if not rows else pd.DataFrame(rows)
     if spec.infer_block_from is not None:
         result = _infer_blocks(result, spec.infer_block_from)
     if csv_path is not None and spec.csv_columns is not None:

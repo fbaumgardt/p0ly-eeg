@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import math
 
 import mne
@@ -191,6 +192,41 @@ class TestEmptyInput:
     def test_empty_does_not_raise(self, mod):
         empty = pd.DataFrame(columns=["onset", "description"])
         mod.get_metadata(empty)  # must not raise
+
+    @pytest.mark.parametrize("mod", [dmss, dotprobe, mgsearch, simonfb, intwm, igt])
+    def test_empty_result_keeps_schema(self, mod):
+        """An event-less run must stay typed, not collapse to shape (0, 0)."""
+        result = mod.get_metadata(pd.DataFrame(columns=["onset", "description"]))
+        assert len(result) == 0
+        assert {"Block", "Trial", "Onset"}.issubset(result.columns)
+
+    @pytest.mark.parametrize(
+        ("mod", "events"),
+        [
+            (dmss, DMSS_EVENTS),
+            (dotprobe, DOTPROBE_EVENTS),
+            (intwm, INTWM_EVENTS),
+            (simonfb, SIMONFB_EVENTS),
+            (igt, IGT_EVENTS),
+        ],
+    )
+    def test_empty_columns_match_populated(self, mod, events):
+        """Empty and populated runs must agree on columns *and order* (SCHEMA §2)."""
+        populated = mod.get_metadata(events)
+        empty = mod.get_metadata(pd.DataFrame(columns=["onset", "description"]))
+        assert len(populated) > 0
+        assert list(empty.columns) == list(populated.columns)
+
+    @pytest.mark.parametrize("mod", [dmss, dotprobe, mgsearch, simonfb, intwm, igt])
+    def test_empty_result_tsv_roundtrip(self, mod):
+        """Regression: a headerless TSV made ``read_csv`` raise ``EmptyDataError``."""
+        empty = mod.get_metadata(pd.DataFrame(columns=["onset", "description"]))
+        buf = io.StringIO()
+        empty.to_csv(buf, sep="\t", index=False)
+        assert buf.getvalue().strip(), "empty metadata must still write a header"
+        back = pd.read_csv(io.StringIO(buf.getvalue()), sep="\t")
+        assert back.empty
+        assert list(back.columns) == list(empty.columns)
 
 
 # ---------------------------------------------------------------------------

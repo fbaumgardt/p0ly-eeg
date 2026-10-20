@@ -1,4 +1,4 @@
-"""Analysis modules for p0ly_utils (US-010+): ERP, then PSD/TFR/connectivity/...
+"""Analysis modules for p0ly_utils (US-010+): ERP, PSD, TFR, connectivity, ...
 
 Each analysis domain lives in its own submodule. All functions are pure
 (stateless, no filesystem paths) and documented with array shapes per
@@ -15,14 +15,34 @@ from p0ly_utils.analysis.erp import (
     grand_average,
     group_erp,
 )
+from p0ly_utils.analysis.psd import (
+    AperiodicFit,
+    average_spectrum,
+    band_powers,
+    fit_aperiodic,
+    fit_aperiodic_channels,
+    group_psd,
+    psd_by_condition,
+    psd_epochs,
+    psd_raw,
+)
 
 __all__ = [
+    "AperiodicFit",
     "ClusterPermStats",
     "GroupERPResult",
     "average_epochs",
+    "average_spectrum",
+    "band_powers",
     "cluster_permutation_1samp",
     "eeg_adjacency",
     "evoked_difference",
+    "fit_aperiodic",
+    "fit_aperiodic_channels",
     "grand_average",
     "group_erp",
+    "group_psd",
+    "psd_by_condition",
+    "psd_epochs",
+    "psd_raw",
 ]

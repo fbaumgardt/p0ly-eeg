@@ -3,10 +3,10 @@ revision = 3
 requires-python = ">=3.13"
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform == 'win32'",
-    "python_full_version == '3.14.*' and sys_platform == 'win32'",
     "python_full_version >= '3.15' and sys_platform == 'emscripten'",
-    "python_full_version == '3.14.*' and sys_platform == 'emscripten'",
     "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version == '3.14.*' and sys_platform == 'win32'",
+    "python_full_version == '3.14.*' and sys_platform == 'emscripten'",
     "python_full_version == '3.14.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version < '3.14' and sys_platform == 'win32'",
     "python_full_version < '3.14' and sys_platform == 'emscripten'",
@@ -828,6 +828,7 @@ dependencies = [
     { name = "pandas" },
     { name = "pyyaml" },
     { name = "scikit-learn" },
+    { name = "specparam" },
 ]
 
 [package.dev-dependencies]
@@ -852,6 +853,7 @@ requires-dist = [
     { name = "pandas", specifier = ">=3.0.3" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "scikit-learn", specifier = ">=1.9.0" },
+    { name = "specparam", specifier = ">=2.0.0rc7" },
 ]
 
 [package.metadata.requires-dev]
@@ -1350,6 +1352,19 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/e8/c4/ba2f8066cceb6f23394729afe52f3bf7adec04bf9ed2c820b39e19299111/sortedcontainers-2.4.0.tar.gz", hash = "sha256:25caa5a06cc30b6b83d11423433f65d1f9d76c4c6a0c90e3379eaa43b9bfdb88", size = 30594, upload-time = "2021-05-16T22:03:42.897Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/32/46/9cb0e58b2deb7f82b84065f37f3bffeb12413f947f9388e4cac22c4621ce/sortedcontainers-2.4.0-py2.py3-none-any.whl", hash = "sha256:a163dcaede0f1c021485e957a39245190e74249897e2ae4b2aa38595db237ee0", size = 29575, upload-time = "2021-05-16T22:03:41.177Z" },
+]
+
+[[package]]
+name = "specparam"
+version = "2.0.0rc7"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+    { name = "scipy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b1/91/9200511f5e5eb0a4d779f0a404639fc1980090a239d009359831f86346cd/specparam-2.0.0rc7.tar.gz", hash = "sha256:00744b009c1822ef69478df7b7b5399e1d14fb061747d4606e9fc76772bbcc95", size = 159075, upload-time = "2026-06-09T23:59:14.276Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2c/bf/f0daae29fa2f2da3e0c31ed591498fb4bebe1d4e2be48aa553ae03a48692/specparam-2.0.0rc7-py3-none-any.whl", hash = "sha256:a8d4535ec36cce2037d3a6dce190a08749a3f71f3d0f527978ee36b51c1590cf", size = 216761, upload-time = "2026-06-09T23:59:12.829Z" },
 ]
 
 [[package]]

@@ -16,6 +16,7 @@ dependencies = [
     "pandas>=3.0.3",
     "pyyaml>=6.0",
     "scikit-learn>=1.9.0",
+    "specparam>=2.0.0rc7",
 ]
 
 [build-system]

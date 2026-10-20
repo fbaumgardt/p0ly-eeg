@@ -186,12 +186,66 @@ def artefact_rejection(
     )
 
 
+def _resolve_fit_window(
+    raw: mne.io.BaseRaw,
+    fit_window: float | list[float] | tuple[float, float] | None,
+) -> tuple[float, float] | None:
+    """Translate an ICA fit-window spec into ``(tmin, tmax)`` bounds, or ``None``.
+
+    Single source of truth for the fit-window interpretation shared by
+    :func:`ica_clean_dnn` and :func:`ica_clean_regression`. No centred-window
+    math or validation is duplicated in the callers.
+
+    Parameters
+    ----------
+    raw
+        Continuous raw recording whose ``times`` define the midpoint used for
+        the centred-window form.
+    fit_window
+        ``None`` → no crop (full recording). ``float`` → a centred window of
+        that duration (seconds) around the recording midpoint
+        ``mid = (raw.times[0] + raw.times[-1]) / 2``. ``tuple`` or ``list`` →
+        explicit ``(tmin, tmax)`` bounds (seconds, ``tmin < tmax``). The
+        ``list`` form is accepted because YAML config round-trips ``[tmin, tmax]``
+        to a list (mirrors the ``intervals`` convention).
+
+    Returns
+    -------
+    tuple[float, float] | None
+        ``(tmin, tmax)`` bounds, or ``None`` when no crop is requested.
+
+    Raises
+    ------
+    ValueError
+        If ``fit_window`` is a negative ``float``, or a tuple/list with
+        ``tmin >= tmax`` (or wrong arity). Out-of-range vs the recording is left
+        to MNE's ``crop`` (already raises).
+    """
+    if fit_window is None:
+        return None
+    if isinstance(fit_window, (list, tuple)):
+        if len(fit_window) != 2:
+            raise ValueError(
+                f"fit_window sequence must be (tmin, tmax), got arity {len(fit_window)}"
+            )
+        tmin, tmax = float(fit_window[0]), float(fit_window[1])
+        if tmin >= tmax:
+            raise ValueError(
+                f"fit_window bounds must satisfy tmin < tmax, got ({tmin}, {tmax})"
+            )
+        return tmin, tmax
+    if fit_window < 0:
+        raise ValueError(f"fit_window float must be non-negative, got {fit_window}")
+    midpoint = (raw.times[0] + raw.times[-1]) / 2.0
+    return midpoint - fit_window / 2.0, midpoint + fit_window / 2.0
+
+
 def ica_clean_dnn(
     raw: mne.io.BaseRaw,
     exclude_components: list[str] = ["eye blink", "muscle artifact"],
     threshold: float | None = None,
     bandpass: tuple[float, float] = (1.0, 100.0),
-    duration: float | tuple[float, float] | None = None,
+    fit_window: float | list[float] | tuple[float, float] | None = None,
     n_jobs: int = 1,
 ) -> tuple[mne.io.BaseRaw, ICA]:
     """Remove artefact ICA components identified by ICLabel (DNN-based).
@@ -203,10 +257,11 @@ def ica_clean_dnn(
     low-confidence classifications. Pass ``threshold=None`` to keep the
     label-only behaviour.
 
-    duration controls how much of the recording is used to fit the ICA:
+    fit_window controls how much of the recording is used to fit the ICA:
       - None: use the full recording.
-      - (tmin, tmax): crop to that explicit window.
-      - float: crop a centred window of that length around the recording midpoint.
+      - (tmin, tmax) / [tmin, tmax]: crop to that explicit window.
+      - float: crop a centred window of that duration (seconds) around the
+        recording midpoint.
 
     The input raw is never mutated; a cleaned copy is returned together with the
     fitted ICA object for inspection.
@@ -223,9 +278,12 @@ def ica_clean_dnn(
         behaviour.
     bandpass
         ``(l_freq, h_freq)`` applied to the copy used for ICA fitting.
-    duration
+    fit_window
         Controls the fitting window: ``None`` for full recording,
-        ``(tmin, tmax)`` for explicit crop, ``float`` for centred window.
+        ``(tmin, tmax)`` (or list) for explicit crop, ``float`` for a centred
+        window of that duration (seconds). Interpretation lives in
+        :func:`_resolve_fit_window`; the crop is applied to the ICA-fit copy
+        ``r_ic`` only, never to the cleaned output.
     n_jobs
         Number of parallel jobs for filtering.
 
@@ -240,14 +298,9 @@ def ica_clean_dnn(
 
     r_ic = raw.copy().filter(*bandpass, n_jobs=n_jobs)
 
-    if duration is not None:
-        if isinstance(duration, tuple):
-            tmin, tmax = duration
-        else:
-            # Centre the window around the recording midpoint.
-            midpoint = (raw.times[0] + raw.times[-1]) / 2.0
-            tmin = midpoint - duration / 2.0
-            tmax = midpoint + duration / 2.0
+    bounds = _resolve_fit_window(raw, fit_window)
+    if bounds is not None:
+        tmin, tmax = bounds
         r_ic = r_ic.crop(tmin=tmin, tmax=tmax)
 
     ica = ICA(
@@ -280,14 +333,13 @@ def ica_clean_regression(
     bandpass: tuple[float, float] = (1.0, 40.0),
     decim: int = 1,
     components: int = 20,
-    tmin: float = 0.0,
-    tmax: float | None = None,
+    fit_window: float | list[float] | tuple[float, float] | None = None,
 ) -> tuple[mne.io.BaseRaw, ICA]:
     """Remove EOG artefact components via regression-based ICA.
 
     EOG channels are detected automatically from raw.info. The search window
-    for find_bads_eog is capped at 1000 s from tmin to keep it tractable on
-    long recordings. The input raw is never mutated.
+    for find_bads_eog is capped at 1000 s from the fit-window start to keep it
+    tractable on long recordings. The input raw is never mutated.
 
     Parameters
     ----------
@@ -301,10 +353,12 @@ def ica_clean_regression(
         Decimation factor for ICA fitting.
     components
         Number of ICA components to compute.
-    tmin
-        Start time (s) of the fitting window.
-    tmax
-        End time (s) of the fitting window. ``None`` uses the recording end.
+    fit_window
+        Controls the fitting window: ``None`` for full recording,
+        ``(tmin, tmax)`` (or list) for explicit crop, ``float`` for a centred
+        window of that duration (seconds). Interpretation lives in
+        :func:`_resolve_fit_window`; the crop is applied to the ICA-fit copy
+        ``r_ic`` only, never to the cleaned output.
 
     Returns
     -------
@@ -314,16 +368,24 @@ def ica_clean_regression(
     ica : mne.preprocessing.ICA
         Fitted ICA object with ``.exclude`` populated.
     """
-    r_ic = raw.copy().crop(tmin=tmin, tmax=tmax).filter(*bandpass)
+    r_ic = raw.copy().filter(*bandpass)
+    bounds = _resolve_fit_window(raw, fit_window)
+    if bounds is not None:
+        tmin, tmax = bounds
+        r_ic = r_ic.crop(tmin=tmin, tmax=tmax)
+    else:
+        tmin = raw.times[0]
+        tmax = raw.times[-1]
+    r_ic = r_ic.set_eeg_reference()
     ica = ICA(n_components=components).fit(r_ic, decim=decim)
 
     eog_indices = mne.pick_types(raw.info, meg=False, eeg=False, eog=True)
     eog_channels = [raw.ch_names[i] for i in eog_indices]
 
-    # Limit the EOG correlation search to a 1000 s window for efficiency.
-    # Consider replacing tmin+1000.0 with tmax
+    # Limit the EOG correlation search to a 1000 s window from the fit-window
+    # start for efficiency on long recordings.
     search_start = max(tmin, raw.times[0])
-    search_stop = min(tmin + 1000.0, raw.times[-1])
+    search_stop = min(tmin + 1000.0, tmax)
 
     bad_components: list[int] = []
     for ch_name in eog_channels:
@@ -344,6 +406,7 @@ def preprocess_raw(
     bad_channel_z_thresh: float | None = None,
     ica_strategy: str | None = None,
     icalabel_threshold: float | None = None,
+    ica_fit_window: float | list[float] | tuple[float, float] | None = None,
     interval_window_ms: int | None = None,
     interval_reject_z_thresh: float | None = None,
 ) -> tuple[mne.io.BaseRaw, list[str], ICA | None]:
@@ -380,6 +443,14 @@ def preprocess_raw(
     icalabel_threshold
         ICLabel predicted-class probability cutoff; ignored unless
         ``ica_strategy == "mne-icalabel"`` (and ignored when ICA is skipped).
+    ica_fit_window
+        ICA fit-window control, forwarded as ``fit_window`` to both
+        :func:`ica_clean_dnn` and :func:`ica_clean_regression` (pure pass-through,
+        no translation): ``None`` for the full recording, ``float`` for a
+        centred window of that duration (seconds) around the recording midpoint,
+        ``(tmin, tmax)`` (or list) for an explicit window. The crop applies to
+        the ICA-fit copy ``r_ic`` only; the cleaned output spans the full
+        recording. Silently ignored when ``ica_strategy is None``.
     interval_window_ms
         Sliding-window length in milliseconds (converted to seconds). The
         sliding-window step is skipped unless **both** ``interval_window_ms`` and
@@ -409,7 +480,7 @@ def preprocess_raw(
     # Work on a private copy so the caller's raw is never mutated. The copy is
     # unconditional — non-mutation is a library invariant independent of which
     # steps run.
-    raw = raw.copy()
+    raw = raw.copy().load_data()
     bad_channels: list[str] = []
     ica_obj: ICA | None = None
 
@@ -426,13 +497,18 @@ def preprocess_raw(
         bad_channels = list(raw.info["bads"])
         raw = interpolate_bads(raw)
 
-    # 3. ICA on the cleaned continuous raw. ica_strategy=None skips ICA;
+    # 3. Set preliminary average EEG reference
+    raw.set_eeg_reference()
+
+    # 4. ICA on the cleaned continuous raw. ica_strategy=None skips ICA;
     #    an unrecognised string is still an error (None != invalid strategy).
     if ica_strategy is not None:
         if ica_strategy == "mne-icalabel":
-            raw, ica_obj = ica_clean_dnn(raw, threshold=icalabel_threshold)
+            raw, ica_obj = ica_clean_dnn(
+                raw, threshold=icalabel_threshold, fit_window=ica_fit_window
+            )
         elif ica_strategy == "find_bads_eog":
-            raw, ica_obj = ica_clean_regression(raw)
+            raw, ica_obj = ica_clean_regression(raw, fit_window=ica_fit_window)
         else:
             raise ValueError(
                 f"Unknown ica_strategy {ica_strategy!r} "

@@ -26,14 +26,25 @@ from p0ly_utils.analysis.psd import (
     psd_epochs,
     psd_raw,
 )
+from p0ly_utils.analysis.tfr import (
+    average_power,
+    freq_grid,
+    group_tfr,
+    itpc,
+    tfr_difference,
+    tfr_epochs,
+    tfr_power_epochs,
+)
 
 __all__ = [
     "AperiodicFit",
     "ClusterPermStats",
     "GroupERPResult",
     "average_epochs",
+    "average_power",
     "average_spectrum",
     "band_powers",
+    "freq_grid",
     "cluster_permutation_1samp",
     "eeg_adjacency",
     "evoked_difference",
@@ -42,7 +53,12 @@ __all__ = [
     "grand_average",
     "group_erp",
     "group_psd",
+    "group_tfr",
+    "itpc",
     "psd_by_condition",
     "psd_epochs",
     "psd_raw",
+    "tfr_difference",
+    "tfr_epochs",
+    "tfr_power_epochs",
 ]

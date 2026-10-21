@@ -60,11 +60,12 @@ def _epoch_data(
     Locked-phase epochs use a cosine fixed at zero phase (drives ITPC → 1 at
     10 Hz); jittered-phase epochs use a per-epoch uniform phase flip.
     """
-    phase = {
+    phase_options: dict[str, float | np.ndarray | None] = {
         "locked": 0.0,
         "jittered": rng.uniform(0.0, 2.0 * np.pi, n_epochs)[:, None, None],
         "none": None,
-    }[condition]  # type: ignore[index]
+    }
+    phase = phase_options[condition]
     t = np.arange(_N_TIMES) / _SFREQ
     data = rng.normal(0.0, _SIGMA, (n_epochs, _N_CHANNELS, _N_TIMES))
     if phase is not None:

@@ -20,6 +20,7 @@ from mne import EpochsArray, create_info
 from mne.time_frequency import AverageTFR, EpochsTFR
 
 from p0ly_utils.analysis import (
+    ClusterPermStats,
     average_power,
     freq_grid,
     group_tfr,
@@ -332,3 +333,102 @@ class TestTfrDifference:
         wide = average_power(tfr_epochs(_synthetic_epochs(info, "locked"), _FREQS))
         with pytest.raises(ValueError, match="frequency grid"):
             tfr_difference(wide, narrow)
+
+
+# --- TFR cluster permutation (US-026) ---
+
+
+class TestItpcZ:
+    """Fisher z-transform: correctness, monotonicity, ceiling clipping."""
+
+    def test_atanh_values(self) -> None:
+        from p0ly_utils.analysis import itpc_z
+
+        got = itpc_z(np.array([0.0, 0.5]))
+        assert np.allclose(got, np.arctanh([0.0, 0.5]))
+
+    def test_ceiling_stays_finite(self) -> None:
+        from p0ly_utils.analysis import itpc_z
+
+        got = itpc_z(np.array([1.0, 0.9999999999]))
+        assert np.all(np.isfinite(got)) and np.all(got > 0)
+
+    def test_ignores_sign_convention_of_input(self) -> None:
+        from p0ly_utils.analysis import itpc_z
+
+        # Difference-map ITPC spans [-1, 1]; arctanh handles negatives too.
+        assert np.isfinite(itpc_z(-0.9))
+
+
+class TestTfrClusterPermutation:
+    """Cluster permutation over (channel x freq x time) difference grids.
+
+    Simulated multi-subject difference maps: 8 subjects, 4 channels, 3 freqs,
+    5 times of unit-variance noise; an effect of +3 injected at
+    (channel 1, freq 1, times 2-3) for every subject — adjacent in time, so
+    the cluster test must find a significant cluster there.
+    """
+
+    _SHAPE = (8, 4, 3, 5)
+
+    @pytest.fixture(scope="class")
+    def effect_stats(self) -> ClusterPermStats:
+        from p0ly_utils.analysis import tfr_cluster_permutation
+
+        rng = np.random.default_rng(_SEED)
+        X = rng.normal(size=self._SHAPE)
+        X[:, 1, 1, 2:4] += 3.0
+        ch_adj = np.eye(self._SHAPE[1], k=1, dtype=bool) | np.eye(self._SHAPE[1], k=-1, dtype=bool)
+        return tfr_cluster_permutation(
+            X, ch_adj, n_permutations=128, seed=_SEED
+        )
+
+    def test_finds_significant_cluster_at_effect(self, effect_stats: ClusterPermStats) -> None:
+        assert effect_stats.n_significant(0.05) >= 1
+        significant = effect_stats.clusters[
+            int(np.argmin(effect_stats.cluster_pvals))
+        ]
+        ch_idx, freq_idx, time_idx = significant
+        assert 1 in np.asarray(ch_idx)
+        assert 1 in np.asarray(freq_idx)
+        assert set(np.asarray(time_idx)) & {2, 3}
+
+    def test_t_obs_shape(self, effect_stats: ClusterPermStats) -> None:
+        assert effect_stats.t_obs.shape == self._SHAPE[1:]
+
+    def test_clusters_are_three_index_tuples(self, effect_stats: ClusterPermStats) -> None:
+        assert len(effect_stats.clusters) > 0
+        for ch_idx, freq_idx, time_idx in effect_stats.clusters:
+            assert ch_idx.ndim == freq_idx.ndim == time_idx.ndim == 1
+
+    def test_fewer_than_two_subjects_fails_loud(self) -> None:
+        from p0ly_utils.analysis import tfr_cluster_permutation
+
+        X = np.zeros((1, 4, 3, 5))
+        ch_adj = np.eye(4, k=1, dtype=bool) | np.eye(4, k=-1, dtype=bool)
+        with pytest.raises(ValueError, match=">= 2 subjects"):
+            tfr_cluster_permutation(X, ch_adj)
+
+    def test_3d_input_fails_loud(self) -> None:
+        from p0ly_utils.analysis import tfr_cluster_permutation
+
+        ch_adj = np.eye(4, k=1, dtype=bool) | np.eye(4, k=-1, dtype=bool)
+        with pytest.raises(ValueError, match="4-D"):
+            tfr_cluster_permutation(np.zeros((8, 12, 5)), ch_adj)
+
+    def test_adjacency_mismatch_fails_loud(self) -> None:
+        from p0ly_utils.analysis import tfr_cluster_permutation
+
+        X = np.zeros((8, 4, 3, 5))
+        with pytest.raises(ValueError, match="adjacency shape"):
+            tfr_cluster_permutation(X, np.eye(3))
+
+    def test_reproducible_with_seed(self) -> None:
+        from p0ly_utils.analysis import tfr_cluster_permutation
+
+        rng = np.random.default_rng(_SEED)
+        X = rng.normal(size=self._SHAPE)
+        ch_adj = np.eye(4, k=1, dtype=bool) | np.eye(4, k=-1, dtype=bool)
+        a = tfr_cluster_permutation(X, ch_adj, n_permutations=32, seed=_SEED)
+        b = tfr_cluster_permutation(X, ch_adj, n_permutations=32, seed=_SEED)
+        assert np.array_equal(a.cluster_pvals, b.cluster_pvals)

@@ -5,6 +5,14 @@ Each analysis domain lives in its own submodule. All functions are pure
 [[SCHEMA]] §1.
 """
 
+from p0ly_utils.analysis.connectivity import (
+    ConnectivityMatrices,
+    GraphMetrics,
+    band_average,
+    graph_metrics,
+    group_connectivity,
+    spectral_connectivity,
+)
 from p0ly_utils.analysis.erp import (
     ClusterPermStats,
     GroupERPResult,
@@ -39,10 +47,13 @@ from p0ly_utils.analysis.tfr import (
 __all__ = [
     "AperiodicFit",
     "ClusterPermStats",
+    "ConnectivityMatrices",
+    "GraphMetrics",
     "GroupERPResult",
     "average_epochs",
     "average_power",
     "average_spectrum",
+    "band_average",
     "band_powers",
     "freq_grid",
     "cluster_permutation_1samp",
@@ -52,12 +63,15 @@ __all__ = [
     "fit_aperiodic_channels",
     "grand_average",
     "group_erp",
+    "group_connectivity",
     "group_psd",
     "group_tfr",
+    "graph_metrics",
     "itpc",
     "psd_by_condition",
     "psd_epochs",
     "psd_raw",
+    "spectral_connectivity",
     "tfr_difference",
     "tfr_epochs",
     "tfr_power_epochs",

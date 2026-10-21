@@ -10,7 +10,9 @@ requires-python = ">=3.13"
 dependencies = [
     "mne>=1.12.1",
     "mne-bids>=0.16",
+    "mne-connectivity>=0.9.0",
     "mne-icalabel>=0.9.0",
+    "networkx>=3.7",
     "numpy>=2.4.6",
     "onnxruntime>=1.26.0",
     "pandas>=3.0.3",

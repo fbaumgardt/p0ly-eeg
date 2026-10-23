@@ -18,6 +18,7 @@ from mne import EpochsArray, create_info
 from p0ly_utils.analysis import (
     ConnectivityMatrices,
     band_average,
+    difference_connectivity,
     graph_metrics,
     group_connectivity,
     spectral_connectivity,
@@ -163,6 +164,74 @@ def test_group_connectivity_freq_grid_mismatch_fails_loud() -> None:
 def test_group_connectivity_empty_fails_loud() -> None:
     with pytest.raises(ValueError, match="no results"):
         group_connectivity([])
+
+
+# --- US-013 deferrals: Fisher-z averaging + difference adjacencies ----------
+
+
+class _Fake:
+    """Hand-built ConnectivityMatrices with known values for averaging tests."""
+
+    @staticmethod
+    def _make(values: float) -> ConnectivityMatrices:
+        ch = tuple("abc")
+        return ConnectivityMatrices(
+            ch_names=ch,
+            freqs=np.array([10.0, 20.0]),
+            matrices={
+                "wpli": np.full((3, 3, 2), values),
+            },
+        )
+
+
+def test_group_connectivity_fisher_z_matches_manual_arctanh_mean() -> None:
+    """Fisher-z averaging is tanh(mean(arctanh(m))) per element."""
+    a, b = _Fake._make(0.3), _Fake._make(0.5)
+    z = 0.5 * (np.arctanh(0.3) + np.arctanh(0.5))
+    out = group_connectivity([a, b], fisher_z=True)
+    assert np.allclose(out.matrices["wpli"], np.tanh(z))
+    # differs from the plain arithmetic mean (0.4) for unequal inputs
+    assert not np.allclose(out.matrices["wpli"], 0.4)
+
+
+def test_group_connectivity_fisher_z_clip_keeps_saturated_values_finite() -> None:
+    """Saturation at 1.0 clips to atanh(1 - 1e-7); result stays finite."""
+    a, b = _Fake._make(1.0), _Fake._make(0.9)
+    out = group_connectivity([a, b], fisher_z=True)
+    assert np.all(np.isfinite(out.matrices["wpli"]))
+    assert out.matrices["wpli"].max() <= 1.0
+
+
+def test_group_connectivity_fisher_z_single_subject_identity() -> None:
+    """clip(arctanh(clip(x))) with x inside (clip range) returns x."""
+    a = _Fake._make(0.4)
+    out = group_connectivity([a], fisher_z=True)
+    assert np.allclose(out.matrices["wpli"], 0.4)
+
+
+def test_difference_connectivity_values_and_symmetry() -> None:
+    """Difference adjacency is the plain A - B, elementwise and symmetric."""
+    a, b = _Fake._make(0.7), _Fake._make(0.2)
+    out = difference_connectivity(a, b)
+    m = out.matrices["wpli"]
+    assert np.allclose(m, 0.5)
+    assert np.allclose(m, m.transpose(1, 0, 2))
+    assert out.ch_names == a.ch_names and np.allclose(out.freqs, a.freqs)
+
+
+def test_difference_connectivity_keeps_sign_and_fails_loud_on_mismatch() -> None:
+    """Signs survive (A - B direction is meaningful) and guards fire."""
+    a = ConnectivityMatrices(
+        ch_names=_Fake._make(0.1).ch_names,
+        freqs=_Fake._make(0.1).freqs,
+        matrices={"wpli": np.array([[[0.4, 0.4], [0.0, 0.0], [0.0, 0.0]]] * 3)},
+    )
+    b = _Fake._make(0.2)
+    out = difference_connectivity(a, b)
+    assert out.matrices["wpli"][0, 0, 0] == pytest.approx(0.2)
+    bad = ConnectivityMatrices(a.ch_names, a.freqs + 1.0, a.matrices)
+    with pytest.raises(ValueError, match="frequency grid"):
+        difference_connectivity(a, bad)
 
 
 # --- band_average -----------------------------------------------------------

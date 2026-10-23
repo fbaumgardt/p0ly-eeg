@@ -208,6 +208,8 @@ def _check_comparable(a: ConnectivityMatrices, b: ConnectivityMatrices, label: s
 
 def group_connectivity(
     mats: Sequence[ConnectivityMatrices],
+    *,
+    fisher_z: bool = False,
 ) -> ConnectivityMatrices:
     """Equal-weight grand average of per-subject connectivity results.
 
@@ -216,6 +218,12 @@ def group_connectivity(
     mats : sequence of ConnectivityMatrices
         Per-subject results sharing an identical channel set, method set and
         frequency grid.
+    fisher_z : bool
+        Average in Fisher-z space instead of the plain arithmetic mean
+        (default ``False``). Values are clipped to
+        ``(-1 + 1e-7, 1 - 1e-7)`` — the same ceiling clip as
+        :func:`p0ly_utils.analysis.itpc_z` — so saturated couplings stay
+        finite; the mean is ``tanh``-transformed back to coupling units.
 
     Returns
     -------
@@ -233,13 +241,67 @@ def group_connectivity(
         raise ValueError("group_connectivity: received no results — nothing to average")
     for m in mats_list[1:]:
         _check_comparable(mats_list[0], m, "group_connectivity")
+    if fisher_z:
+
+        def _average(method: str) -> NDArray[np.float64]:
+            stacked = np.stack(
+                [
+                    np.arctanh(np.clip(m.matrices[method], -1.0 + 1e-7, 1.0 - 1e-7))
+                    for m in mats_list
+                ],
+                axis=0,
+            )
+            return np.asarray(np.tanh(stacked.mean(axis=0)), dtype=np.float64)
+
+    else:
+
+        def _average(method: str) -> NDArray[np.float64]:
+            return np.asarray(
+                np.stack([m.matrices[method] for m in mats_list], axis=0).mean(axis=0),
+                dtype=np.float64,
+            )
+
     return ConnectivityMatrices(
         ch_names=mats_list[0].ch_names,
         freqs=mats_list[0].freqs.copy(),
-        matrices={
-            method: np.stack([m.matrices[method] for m in mats_list], axis=0).mean(axis=0)
-            for method in mats_list[0].matrices
-        },
+        matrices={method: _average(method) for method in mats_list[0].matrices},
+    )
+
+
+def difference_connectivity(
+    a: ConnectivityMatrices,
+    b: ConnectivityMatrices,
+) -> ConnectivityMatrices:
+    """Difference adjacency ``a - b`` of two comparable results.
+
+    Plain arithmetic difference per method and bin. This compounds sign
+    flips of near-zero couplings (documented bias — the two grand means
+    average over independent pairs); scripts must label such outputs as
+    condition differences, not physical coupling strengths.
+
+    Parameters
+    ----------
+    a, b : ConnectivityMatrices
+        Results sharing an identical channel set, method set, and frequency
+        grid (e.g. the two grand averages of a contrast pair). The result
+        keeps ``a``'s channel ordering and the shared frequency axis.
+
+    Returns
+    -------
+    ConnectivityMatrices
+        ``matrices[method]`` is ``(n_channels, n_channels, n_freqs)``,
+        symmetric with a zero diagonal.
+
+    Raises
+    ------
+    ValueError
+        Any channel/method/frequency mismatch (US-024 fail-loud).
+    """
+    _check_comparable(a, b, "difference_connectivity")
+    return ConnectivityMatrices(
+        ch_names=a.ch_names,
+        freqs=a.freqs.copy(),
+        matrices={m: a.matrices[m] - b.matrices[m] for m in a.matrices},
     )
 
 

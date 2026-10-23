@@ -33,7 +33,7 @@ __all__ = ["load_raw", "load_raw_brainvision", "load_raw_bids"]
 
 def load_raw_brainvision(
     vhdr: str | Path | os.PathLike,
-    montage: str = "easycap-M1",
+    montage: str | None = "easycap-M1",
 ) -> mne.io.BaseRaw:
     """Read a BrainVision recording from a concrete ``.vhdr`` file path.
 
@@ -48,7 +48,7 @@ def load_raw_brainvision(
         object). Pipeline-owned; the library composes no paths.
     montage
         MNE builtin montage name applied when the recording has none. Default
-        ``"easycap-M1"``.
+        ``"easycap-M1"``; ``None`` leaves the recording without a montage.
 
     Returns
     -------
@@ -58,14 +58,14 @@ def load_raw_brainvision(
     """
     raw = mne.io.read_raw_brainvision(Path(vhdr), preload=False, verbose="ERROR")
     raw.set_channel_types({k: "eog" for k in raw.ch_names if "EOG" in k.upper()})
-    if raw.get_montage() is None:
+    if montage is not None and raw.get_montage() is None:
         raw.set_montage(montage, on_missing="ignore")
     return raw
 
 
 def load_raw_bids(
     bids_path: BIDSPath,
-    montage: str = "easycap-M1",
+    montage: str | None = "easycap-M1",
 ) -> mne.io.BaseRaw:
     """Read a BIDS EEG recording via :func:`mne_bids.read_raw_bids`.
 
@@ -80,7 +80,7 @@ def load_raw_bids(
         recording. ``read_raw_bids`` resolves the concrete file at runtime.
     montage
         MNE builtin montage name applied when the sidecar lacks one. Default
-        ``"easycap-M1"``.
+        ``"easycap-M1"``; ``None`` leaves the recording without a montage.
 
     Returns
     -------
@@ -90,14 +90,14 @@ def load_raw_bids(
     """
     raw = read_raw_bids(bids_path=bids_path, verbose="ERROR")
     raw.set_channel_types({k: "eog" for k in raw.ch_names if "EOG" in k.upper()})
-    if raw.get_montage() is None:
+    if montage is not None and raw.get_montage() is None:
         raw.set_montage(montage, on_missing="ignore")
     return raw
 
 
 def load_raw(
     source: str | Path | os.PathLike | BIDSPath,
-    montage: str = "easycap-M1",
+    montage: str | None = "easycap-M1",
 ) -> mne.io.BaseRaw:
     """Dispatch to a per-format raw reader based on the type of ``source``.
 
@@ -116,7 +116,8 @@ def load_raw(
         ``list[str | Path]`` for multi-segment recording merge.
     montage
         MNE builtin montage name. Applied to BrainVision always (when missing)
-        and to BIDS only when the sidecar lacks one. Default ``"easycap-M1"``.
+        and to BIDS only when the sidecar lacks one. Default ``"easycap-M1"``;
+        ``None`` keeps the recording's own (possibly absent) montage.
 
     Returns
     -------

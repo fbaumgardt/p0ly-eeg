@@ -4,7 +4,7 @@ EEG utilities library (`p0ly_utils`) for preprocessing, epoching, metadata parsi
 
 ![CI](https://github.com/fbaumgardt/p0ly-utils/actions/workflows/ci.yml/badge.svg?branch=main)
 
-The library powers [p0ly-flow](../p0ly-flow), a Snakemake pipeline used for research at Boston University's Reinhart Lab for Computational Cognitive Neuroscience. All functions are pure (stateless, no filesystem paths — pipeline-owned) and documented with array shapes.
+The library powers [p0ly-flow](../p0ly-flow), a Snakemake pipeline used for my PhD research at Boston University's Reinhart Lab for Computational Cognitive Neuroscience. All functions are pure (stateless, no filesystem paths — pipeline-owned) and documented with array shapes.
 
 ## Analyses
 
@@ -48,7 +48,7 @@ df = dotprobe.get_metadata(evt, ids)  # evt: MNE events array; ids: code -> id m
 
 ## Preprocessing
 
-`preprocessing` (channel Z-scoring bad-channel detection, automated ICA with EOG artefact removal, sliding-window trial clipping) overlaps with published packages (pyprep, autoreject, mne-faster), perhaps more robustly there. We maintain in-house versions for flexibility on edge cases of data corruption (e.g. from stimulation) and specific signal-to-noise compromises (very small or large n). Without such requirements, prefer the published packages.
+`preprocessing` (channel Z-scoring bad-channel detection, automated ICA with EOG artefact removal, sliding-window trial clipping) overlaps with published packages (pyprep, autoreject, mne-faster), perhaps more robustly there. We maintain in-house versions for flexibility on edge cases of data corruption (e.g. from stimulation) and specific signal-to-noise compromises (very small or large n). Without such requirements, you probably should prefer the published packages.
 
 ## Install
 

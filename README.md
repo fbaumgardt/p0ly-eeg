@@ -16,6 +16,7 @@ The `p0ly_utils.analysis` package (one submodule per domain, all importable from
 | **PSD** (`psd`) | Welch spectra for raw/epoched data, per-condition spectra, band powers, aperiodic (1/f) fits via `specparam` |
 | **TFR** (`tfr`) | Time–frequency power and ITPC (+ z-score), group averages, condition differences, TFR cluster-permutation |
 | **Connectivity** (`connectivity`) | Spectral connectivity (wPLI, coherence, PLV) per condition, group averaging (plain or Fisher-z), band-averaged graph metrics (clustering, strength, path length), condition-difference adjacencies |
+| **Regression** (`regression`) | Single-trial OLS beta maps per term (intercept, continuous + reference-coded categorical `Epochs.metadata` predictors) for voltage or per-epoch TFR power, explicit exclusion counts, equal-subject-weight cohort means |
 
 ```python
 from p0ly_utils.analysis import psd_by_condition, band_powers
@@ -33,6 +34,27 @@ powers = band_powers(
 
 conn = spectral_connectivity(epochs, methods=["wpli", "coh"], fmin=4.0, fmax=45.0)
 average = group_connectivity([conn_subject_a, conn_subject_b], fisher_z=True)
+```
+
+Single-trial regression (`regression_epochs` → `group_regression`) fits one OLS
+model per subject and timelock on all retained trials: intercept, every
+continuous column as a linear term, every categorical column reference-coded
+against its lexicographically first level. Beta maps are
+`(n_channels, n_times)` for `domain="voltage"` and
+`(n_channels, n_freqs, n_times)` for `domain="power"` (per-epoch TFR power —
+pass the pipeline's `tfr:` block as `tfr_settings`). Rows with null/non-finite
+predictors are excluded and counted (`excluded_rows`), never silently dropped;
+empty or rank-deficient designs fail loud. Cohort results are equal-subject
+means, not pooled-trial estimates.
+
+```python
+from p0ly_utils.analysis import regression_epochs, group_regression
+
+result = regression_epochs(
+    epochs, continuous=["RT"], categorical=["Correct"], domain="voltage",
+)
+result.beta_maps["Correct[True]"]  # (n_channels, n_times) vs the "False" reference
+cohort = group_regression([result_subject_a, result_subject_b])
 ```
 
 ## Metadata parsing

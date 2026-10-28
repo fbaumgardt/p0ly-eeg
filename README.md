@@ -1,6 +1,6 @@
 # p0ly-utils
 
-EEG utilities library (`p0ly_utils`) for preprocessing, epoching, metadata parsing, and time/frequency/connectivity analyses of event-related EEG.
+EEG utilities library (`p0ly_utils`) for preprocessing, epoching, metadata parsing, and time/frequency/connectivity/coupling analyses of event-related EEG.
 
 ![CI](https://github.com/fbaumgardt/p0ly-utils/actions/workflows/ci.yml/badge.svg?branch=main)
 
@@ -17,6 +17,7 @@ The `p0ly_utils.analysis` package (one submodule per domain, all importable from
 | **TFR** (`tfr`) | Time–frequency power and ITPC (+ z-score), group averages, condition differences, TFR cluster-permutation |
 | **Connectivity** (`connectivity`) | Spectral connectivity (wPLI, coherence, PLV) per condition, group averaging (plain or Fisher-z), band-averaged graph metrics (clustering, strength, path length), condition-difference adjacencies |
 | **Regression** (`regression`) | Single-trial OLS beta maps per term (intercept, continuous + reference-coded categorical `Epochs.metadata` predictors) for voltage or per-epoch TFR power, explicit exclusion counts, equal-subject-weight cohort means |
+| **CFC** (`cfc`) | Within-channel PAC (tensorpac, Gaussian-copula default) and n:m phase-phase coupling (Hilbert phases, mean resultant length) with full surrogate nulls, equal-subject descriptive cohort means, and subject-unit condition contrasts with full-map max-statistic correction |
 
 ```python
 from p0ly_utils.analysis import psd_by_condition, band_powers
@@ -56,6 +57,29 @@ result = regression_epochs(
 result.beta_maps["Correct[True]"]  # (n_channels, n_times) vs the "False" reference
 cohort = group_regression([result_subject_a, result_subject_b])
 ```
+
+### Cross-frequency coupling
+
+`cfc` returns one map per method with axes `(n_channels, n_phase_freqs, n_amp_freqs)`: `"pac"` (tensorpac, Gaussian-copula default) and `"ppc_<n>x<m>"` (Hilbert phases of integer-ratio pairs; off-ratio cells are NaN and flagged by `valid_mask`). Three evidence levels are kept strictly apart:
+
+- `estimate_cfc` → per-subject maps with the **full** surrogate null and one-sided empirical p-values (`evidence_level="subject"`, uncorrected, descriptive);
+- `group_cfc` → equal-subject-weight means at any `n >= 1` (`"cohort_descriptive"`, no averaged p-values);
+- `cfc_condition_contrast` → per-subject condition differences, sign flips at the subject unit, one full-map max-|statistic| family per method (`"cohort_subject_unit"`). It accepts observed `CFCMap` objects only, so subject p-values cannot be pooled into a cohort claim.
+
+```python
+from p0ly_utils.analysis import estimate_cfc, group_cfc
+
+subject = estimate_cfc(
+    epochs,  # (n_epochs, n_channels, n_times)
+    methods=["pac", "phase_phase"],
+    phase_freqs=[4.0, 6.0, 8.0], amp_freqs=[20.0, 25.0, 30.0],
+    phase_bandwidth=2.0, amp_bandwidth=4.0,
+    ratios=[(2, 1)], ratio_tolerance=0.5, n_surrogates=200, seed=20261020,
+)
+cohort = group_cfc([subject_a, subject_b])  # observed maps only
+```
+
+Cross-channel/region pairs and between-cohort inference are out of scope.
 
 ## Metadata parsing
 

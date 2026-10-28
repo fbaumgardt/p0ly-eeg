@@ -5,6 +5,15 @@ Each analysis domain lives in its own submodule. All functions are pure
 [[SCHEMA]] §1.
 """
 
+from p0ly_utils.analysis.cfc import (
+    CFCContrastResult,
+    CFCMap,
+    GroupCFCResult,
+    SubjectCFCResult,
+    cfc_condition_contrast,
+    estimate_cfc,
+    group_cfc,
+)
 from p0ly_utils.analysis.connectivity import (
     ConnectivityMatrices,
     GraphMetrics,
@@ -55,17 +64,23 @@ from p0ly_utils.analysis.tfr import (
 
 __all__ = [
     "AperiodicFit",
+    "CFCMap",
+    "CFCContrastResult",
     "ClusterPermStats",
     "ConnectivityMatrices",
     "GraphMetrics",
+    "GroupCFCResult",
     "GroupERPResult",
     "GroupRegressionResult",
     "RegressionResult",
+    "SubjectCFCResult",
     "average_epochs",
     "average_power",
     "average_spectrum",
     "band_average",
     "band_powers",
+    "cfc_condition_contrast",
+    "estimate_cfc",
     "freq_grid",
     "difference_connectivity",
     "cluster_permutation_1samp",
@@ -76,6 +91,7 @@ __all__ = [
     "grand_average",
     "group_erp",
     "group_connectivity",
+    "group_cfc",
     "group_psd",
     "group_regression",
     "group_tfr",

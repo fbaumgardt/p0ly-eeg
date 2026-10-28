@@ -24,11 +24,42 @@ Stage 0 dependency probe — tensorpac 0.6.5 (verified live 2026-10-28)
   wrapper reshapes to ``(n_amp, n_pha, n_epochs, n_channels)``, averages over
   epochs (subject map) and transposes to the public
   ``(n_channels, n_phase_freqs, n_amp_freqs)`` SCHEMA shape.
-- ``Pac.surrogates`` is the **full native null map**
-  ``(n_perm, n_amp, n_pha, n_series)``; it is reshaped/averaged/transposed
-  exactly like the observed map. ``random_state`` makes the draw
-  reproducible. ``Pac.pvalues`` is *not* used: the wrapper owns the
-  ``(1 + exceedances) / (n_surrogates + 1)`` convention.
+- ``Pac.surrogates`` exposes a full native null map
+  ``(n_perm, n_amp, n_pha, n_series)``, and ``Pac.pvalues`` carries
+  tensorpac's own max-statistic convention. **Neither is used.** The native
+  time-lag surrogate (id 3) draws one scalar shift and rolls every series
+  identically, so a stationary low-frequency phase and its amplitude envelope
+  are merely rotated together — Gaussian-copula PAC and MVL are invariant to
+  that rotation and the null collapses onto the observed value (measured:
+  observed 0.645 vs null 0.643, p = 0.55 with 0.9-depth injected coupling).
+  The wrapper therefore owns the null (see below) and the
+  ``(1 + exceedances) / (n_surrogates + 1)`` p-value convention.
+
+Surrogate construction (both methods, one shared implementation)
+---------------------------------------------------------------
+Per surrogate, one seeded integer shift per **(epoch, channel)** circularly
+rolls the amplitude series (PAC) or the high-band phase series (PPC) relative
+to its partner, via ``np.take_along_axis``. Every epoch keeps its own filtered
+sequence — only the cross-frequency alignment is destroyed — and the same
+``numpy`` generator and draw order serve both methods, so the shift semantics
+and the seed reproducibility are identical. PAC still uses the verified
+tensorpac **estimator** on each shifted array; only the null *generator* is
+wrapper-owned.
+
+Residual limitations (both documented rather than hidden):
+
+- A **perfectly stationary** phase-amplitude relation is invariant to *any*
+  circular shift of its envelope — a shift of a pure sinusoid is a rotation,
+  and Gaussian-copula PAC / MVL are rotation-invariant. Pure-sinusoid
+  synthetic data therefore still yields a saturated null; destructiveness
+  relies on the non-stationarity of real signals (frequency drift), which the
+  per-(epoch, channel) draw exploits. No shift-based null can fix the
+  stationary case.
+- The shift wraps inside an epoch, so coupling that survived a wrap would be
+  underestimated; epochs are short relative to the shift range and this is a
+  one-sided exceedance test, so the direction of that bias is conservative.
+- Estimator calls grow linearly with ``n_surrogates`` (one tensorpac call per
+  surrogate instead of tensorpac's vectorized inner loop).
 
 Evidence boundaries (see [[SCHEMA]] §1 and US-027):
 - Subject maps/null/p-values are **descriptive subject-level evidence**
@@ -73,8 +104,10 @@ __all__ = [
 
 #: tensorpac estimator IDs verified in the Stage 0 probe.
 _PAC_IDS = {"gaussian_copula": 6, "mean_vector_length": 1}
-#: tensorpac surrogate ID 3 = Canolty time-lag shift.
-_PAC_SURROGATE_ID = 3
+#: tensorpac surrogate ID 0 = no native surrogates (the wrapper owns the null;
+#: id 3's single scalar roll is non-destructive for stationary phase — see the
+#: module docstring).
+_PAC_SURROGATE_ID = 0
 #: tensorpac normalisation ID 0 = raw estimator (no surrogate normalisation).
 _PAC_NORM_ID = 0
 #: Public method names accepted by :func:`estimate_cfc`.
@@ -347,6 +380,19 @@ def _empirical_p(
 # --- PAC --------------------------------------------------------------------
 
 
+def _circular_shift_index(
+    rng: np.random.Generator, n_series: int, n_times: int
+) -> NDArray[np.intp]:
+    """One random circular-shift index per series, shape ``(n_series, n_times)``.
+
+    Shared by the PAC and PPC surrogate generators so both draw identically
+    seeded, independently shifted series (never a single global rotation).
+    """
+    stride = np.arange(n_times)
+    shifts = rng.integers(0, n_times, size=(n_series, 1))
+    return np.asarray((stride + shifts) % n_times, dtype=np.intp)
+
+
 def _pac_subject_maps(
     data: NDArray[np.float64],
     sfreq: float,
@@ -359,18 +405,24 @@ def _pac_subject_maps(
     seed: int | None,
     n_jobs: int,
 ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
-    """Observed + full null PAC maps from one tensorpac call per stage.
+    """Observed + full null PAC maps (tensorpac estimator, wrapper-owned null).
+
+    The verified tensorpac estimator runs once on the observed filtered data
+    and once per surrogate on an amplitude series circularly shifted within
+    each (epoch, channel) — never through tensorpac's scalar time-lag roll,
+    which is non-destructive for a stationary phase (module docstring).
 
     Returns
     -------
     observed : ndarray, shape (n_channels, n_phase_freqs, n_amp_freqs)
         Gaussian-copula (or MVL) PAC, mean over epochs.
     null : ndarray, shape (n_surrogates, n_channels, n_phase_freqs, n_amp_freqs)
-        tensorpac's native time-lag surrogate maps, reduced identically.
+        Per-epoch-shift surrogate maps, reduced identically to the observed one.
     """
     n_epochs, n_channels, n_times = data.shape
     # Fold channels into tensorpac's series axis: one call covers every channel.
-    series = data.reshape(n_epochs * n_channels, n_times)
+    n_series = n_epochs * n_channels
+    series = data.reshape(n_series, n_times)
     pac = Pac(
         idpac=(_PAC_IDS[pac_method], _PAC_SURROGATE_ID, _PAC_NORM_ID),
         f_pha=np.column_stack(
@@ -385,27 +437,24 @@ def _pac_subject_maps(
     )
     phases = pac.filter(sfreq, series, ftype="phase", n_jobs=n_jobs)
     amplitudes = pac.filter(sfreq, series, ftype="amplitude", n_jobs=n_jobs)
-    observed = pac.fit(
-        phases,
-        amplitudes,
-        n_perm=n_surrogates,
-        random_state=seed,
-        n_jobs=n_jobs,
-    )
     n_amp, n_pha = amp_freqs.size, phase_freqs.size
-    # tensorpac native order (n_amp, n_pha, n_series) -> SCHEMA (ch, pha, amp).
-    observed_map = (
-        np.asarray(observed, dtype=float)
-        .reshape(n_amp, n_pha, n_epochs, n_channels)
-        .mean(axis=2)
-        .transpose(2, 1, 0)
-    )
-    null_map = (
-        np.asarray(pac.surrogates, dtype=float)
-        .reshape(n_surrogates, n_amp, n_pha, n_epochs, n_channels)
-        .mean(axis=3)
-        .transpose(0, 3, 2, 1)
-    )
+
+    def _to_schema(maps: NDArray[np.float64]) -> NDArray[np.float64]:
+        # tensorpac native (n_amp, n_pha, n_series) -> SCHEMA (ch, pha, amp).
+        return (
+            np.asarray(maps, dtype=float)
+            .reshape(n_amp, n_pha, n_epochs, n_channels)
+            .mean(axis=2)
+            .transpose(2, 1, 0)
+        )
+
+    observed_map = _to_schema(pac.fit(phases, amplitudes, n_perm=None))
+    rng = np.random.default_rng(seed)
+    null_map = np.empty((n_surrogates, n_channels, n_pha, n_amp), dtype=np.float64)
+    for surrogate in range(n_surrogates):
+        index = _circular_shift_index(rng, n_series, n_times)[np.newaxis]
+        shifted = np.take_along_axis(amplitudes, index, axis=-1)
+        null_map[surrogate] = _to_schema(pac.fit(phases, shifted, n_perm=None))
     return observed_map, null_map
 
 
@@ -475,13 +524,13 @@ def _ppc_subject_maps(
 
     observed = _scatter(_couple(e_high))
     rng = np.random.default_rng(seed)
-    stride = np.arange(n_times)
     null = np.empty((n_surrogates,) + observed.shape, dtype=np.float64)
     for surrogate in range(n_surrogates):
-        # Per-epoch/per-channel circular shift of the high-band phase.
-        shifts = rng.integers(0, n_times, size=(n_epochs, n_channels, 1))
-        index = (stride + shifts) % n_times
-        null[surrogate] = _scatter(_couple(np.take_along_axis(e_high, index[np.newaxis], axis=-1)))
+        # Per-epoch/per-channel circular shift of the high-band phase (same
+        # generator and semantics as the PAC null).
+        index = _circular_shift_index(rng, n_epochs * n_channels, n_times)
+        index = index.reshape(n_epochs, n_channels, n_times)[np.newaxis]
+        null[surrogate] = _scatter(_couple(np.take_along_axis(e_high, index, axis=-1)))
     return observed, null
 
 
@@ -581,6 +630,8 @@ def estimate_cfc(
         raise ValueError("cfc: method 'phase_phase' needs at least one (n, m) ratio")
 
     sfreq = float(epochs.info["sfreq"])
+    # sosfiltfilt (PPC only) needs more samples than its edge padding.
+    needed = _padlen() + 1
     phase_grid = _validate_grid(phase_freqs, phase_bandwidth, sfreq, "phase_freqs")
     amp_grid = _validate_grid(amp_freqs, amp_bandwidth, sfreq, "amp_freqs")
 
@@ -596,11 +647,11 @@ def estimate_cfc(
     if not np.all(np.isfinite(data)):
         raise ValueError("cfc: epochs carry non-finite samples — interpolate/drop before CFC")
     n_times = data.shape[-1]
-    needed_samples = _padlen() + 1
-    if n_times < needed_samples:
+    if "phase_phase" in method_keys and n_times < needed:
         raise ValueError(
-            f"cfc: epochs have {n_times} samples; the {needed_samples}-sample floor "
-            "is what a zero-phase SOS band-pass needs for the configured bands"
+            f"cfc: epochs have {n_times} samples; the {needed}-sample floor is what "
+            "the zero-phase SOS band-pass used by phase_phase needs (PAC has no such "
+            "floor — tensorpac shortens its filter order instead)"
         )
 
     subjects: dict[str, SubjectCFCResult] = {}

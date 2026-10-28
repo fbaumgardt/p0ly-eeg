@@ -921,6 +921,7 @@ dependencies = [
     { name = "pandas" },
     { name = "pyyaml" },
     { name = "scikit-learn" },
+    { name = "scipy" },
     { name = "specparam" },
     { name = "tensorpac" },
 ]
@@ -949,6 +950,7 @@ requires-dist = [
     { name = "pandas", specifier = ">=3.0.3" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "scikit-learn", specifier = ">=1.9.0" },
+    { name = "scipy", specifier = ">=1.17.1" },
     { name = "specparam", specifier = ">=2.0.0rc7" },
     { name = "tensorpac", specifier = "==0.6.5" },
 ]

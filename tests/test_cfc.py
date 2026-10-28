@@ -15,6 +15,13 @@ Frequency selectivity is asserted on the amplitude axis and across channels:
 tensorpac's Hilbert path uses a fixed-cycle FIR whose transition band at low
 frequencies is wide, so a 6 Hz rhythm leaks into neighbouring *phase* bands
 by design of the dependency, not of this wrapper.
+
+Surrogate destructiveness needs non-stationary phase: a circular shift of a
+perfectly stationary phase-amplitude relation is a pure rotation, which
+Gaussian-copula PAC is invariant to (see the module docstring limitation). The
+main PAC fixture is therefore stationary on purpose (robust coupling-strength
+assertions), and ``_pac_drift_epochs`` adds a drifting low-frequency phase for
+the test that asserts the *null collapses and the p-value hits its floor*.
 """
 
 from __future__ import annotations
@@ -78,6 +85,29 @@ def _ppc_epochs(n_epochs: int = 16) -> EpochsArray:
         data[epoch, 0] += np.sin(low) + np.sin(2.0 * low)
         data[epoch, 1] += np.sin(low) + np.sin(independent)
     data += rng.normal(size=data.shape) * 0.05
+    return EpochsArray(data, create_info(list(_CH_NAMES), _SFREQ, "eeg"))
+
+
+def _pac_drift_epochs(*, n_epochs: int = _N_EPOCHS) -> EpochsArray:
+    """PAC fixture with a drifting (non-stationary) 6 Hz phase.
+
+    A circular shift is a pure rotation for a stationary sinusoid, so the
+    surrogate only becomes destructive once the instantaneous frequency moves
+    — which is what real EEG does. One random-walk phase per epoch, ±π rad of
+    drift over the 4 s window.
+    """
+    rng = np.random.default_rng(_SEED)
+    times = np.arange(_N_TIMES) / _SFREQ
+    data = np.zeros((n_epochs, 2, _N_TIMES))
+    for epoch in range(n_epochs):
+        walk = np.cumsum(rng.normal(size=_N_TIMES))
+        walk -= walk.mean()
+        walk = walk / (np.abs(walk).max() + 1e-12) * np.pi
+        low = 2.0 * np.pi * _LO_HZ * times + walk + rng.uniform(0.0, 2.0 * np.pi)
+        high = 2.0 * np.pi * _HI_HZ * times + rng.uniform(0.0, 2.0 * np.pi)
+        data[epoch, 0] += np.sin(low) + (1.0 + 0.9 * np.cos(low)) * np.sin(high)
+        data[epoch, 1] += np.sin(low) + np.sin(high)
+    data += rng.normal(size=data.shape) * 0.1
     return EpochsArray(data, create_info(list(_CH_NAMES), _SFREQ, "eeg"))
 
 
@@ -205,6 +235,26 @@ def test_pac_mean_vector_length_runs(pac_results: dict[str, SubjectCFCResult]) -
     assert np.all(np.isfinite(result.observed.values))
     assert np.all(result.observed.values >= 0.0)
     assert result.observed.values[0][_PAC_CELL] > result.observed.values[1][_PAC_CELL]
+
+
+def test_pac_surrogates_are_destructive() -> None:
+    """Injected coupling must beat its own null, not sit inside it.
+
+    Regression guard for the tensorpac native time-lag surrogate (one scalar
+    roll for every series), which left observed == null and p at chance.
+    """
+    result = _estimate(epochs=_pac_drift_epochs(), n_surrogates=64)["pac"]
+    observed, null, p_values = result.observed.values, result.null, result.p_values
+    target = observed[0][_PAC_CELL]
+    floor = 1.0 / (result.n_surrogates + 1.0)
+    # The surrogate distribution collapses away from the injected cell...
+    assert null[:, 0, _PAC_CELL[0], _PAC_CELL[1]].mean() < 0.5 * target
+    # ...so the observed cell exceeds every surrogate (p at its floor)...
+    assert p_values[0][_PAC_CELL] == pytest.approx(floor)
+    # ...and beats the off-target amplitude bins and the control channel.
+    row = np.delete(p_values[0][_PAC_CELL[0]], _PAC_CELL[1])
+    assert p_values[0][_PAC_CELL] < row.min()
+    assert p_values[0][_PAC_CELL] < np.median(p_values[1])
 
 
 def test_pac_null_is_reproducible_and_seed_sensitive() -> None:
@@ -344,11 +394,20 @@ def test_too_few_epochs_fails() -> None:
         _estimate(epochs=_epochs(n_epochs=1))
 
 
-def test_too_few_samples_fails() -> None:
-    """Epochs shorter than the SOS padding floor fail loud, not silently."""
-    short = EpochsArray(np.zeros((4, 2, 20)), create_info(list(_CH_NAMES), _SFREQ, "eeg"))
-    with pytest.raises(ValueError, match="samples"):
-        _estimate(epochs=short)
+def test_too_few_samples_fails_for_ppc_only() -> None:
+    """The SOS padding floor guards the PPC band-pass, not the tensorpac PAC.
+
+    ppc needs more samples than ``sosfiltfilt`` pads; PAC has no such floor
+    (tensorpac shortens its FIR order instead), so the same short epochs pass
+    a PAC-only run.
+    """
+    rng = np.random.default_rng(5)
+    short = EpochsArray(
+        rng.normal(size=(4, 2, 20)) * 1e-6, create_info(list(_CH_NAMES), _SFREQ, "eeg")
+    )
+    with pytest.raises(ValueError, match="phase_phase"):
+        _ppc_estimate(epochs=short)
+    assert _estimate(epochs=short)["pac"].observed.values.shape == _SHAPE
 
 
 def test_non_finite_data_fails() -> None:

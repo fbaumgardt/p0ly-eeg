@@ -23,6 +23,12 @@ from p0ly_utils.analysis.connectivity import (
     group_connectivity,
     spectral_connectivity,
 )
+from p0ly_utils.analysis.decoding import (
+    DecodingResult,
+    GroupDecodingResult,
+    decode_epochs,
+    group_decoding,
+)
 from p0ly_utils.analysis.erp import (
     ClusterPermStats,
     GroupERPResult,
@@ -74,8 +80,10 @@ __all__ = [
     "CFCContrastResult",
     "ClusterPermStats",
     "ConnectivityMatrices",
+    "DecodingResult",
     "GraphMetrics",
     "GroupCFCResult",
+    "GroupDecodingResult",
     "GroupERPResult",
     "GroupRegressionResult",
     "RegressionResult",
@@ -90,6 +98,7 @@ __all__ = [
     "cfc_condition_contrast",
     "estimate_cfc",
     "freq_grid",
+    "decode_epochs",
     "difference_connectivity",
     "cluster_permutation_1samp",
     "eeg_adjacency",
@@ -97,6 +106,7 @@ __all__ = [
     "fit_aperiodic",
     "fit_aperiodic_channels",
     "grand_average",
+    "group_decoding",
     "group_erp",
     "group_connectivity",
     "group_cfc",

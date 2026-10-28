@@ -19,10 +19,12 @@ The `p0ly_utils.analysis` package (one submodule per domain, all importable from
 | **Regression** (`regression`) | Single-trial OLS beta maps per term (intercept, continuous + reference-coded categorical `Epochs.metadata` predictors) for voltage or per-epoch TFR power, explicit exclusion counts, equal-subject-weight cohort means |
 | **CFC** (`cfc`) | Within-channel PAC (tensorpac, Gaussian-copula default) and n:m phase-phase coupling (Hilbert phases, mean resultant length) with full surrogate nulls, equal-subject descriptive cohort means, and subject-unit condition contrasts with full-map max-statistic correction |
 | **Variability** (`variability`) | Across-trial sample SD for signed voltage, SD/Fano/CV for nonnegative TFR power, equal-subject-weight cohort maps with per-cell contributor counts |
+| **Decoding** (`decoding`) | Within-subject cross-validated MVPA of categorical metadata columns: time-resolved scores `(n_times,)` and temporal-generalization maps `(n_train_times, n_test_times)`, equal-weight cohort means |
 
 ```python
 from p0ly_utils.analysis import psd_by_condition, band_powers
 from p0ly_utils.analysis import spectral_connectivity, group_connectivity
+from p0ly_utils.analysis import decode_epochs, group_decoding
 
 spectra = psd_by_condition(
     epochs,  # carries by-trial metadata from the metadata module
@@ -37,10 +39,17 @@ powers = band_powers(
 conn = spectral_connectivity(epochs, methods=["wpli", "coh"], fmin=4.0, fmax=45.0)
 average = group_connectivity([conn_subject_a, conn_subject_b], fisher_z=True)
 
+<<<<<<< HEAD
 from p0ly_utils.analysis import variability_epochs, group_variability
 
 variability = variability_epochs(epochs, domain="voltage", measures=["sd"])  # (ch, time)
 cohort = group_variability([variability_subject_a, variability_subject_b])
+=======
+# Within-subject decoding of a categorical metadata column (scaler + classifier
+# are cloned and fit on training folds only; scaler never sees held-out trials).
+subject = decode_epochs(epochs, target="Correct", n_splits=5, seed=20261020)
+cohort = group_decoding([subject_a, subject_b])  # equal subject weights
+>>>>>>> 0bbb9f2 (Add within-subject temporal decoding analysis (US-030))
 ```
 
 Single-trial regression (`regression_epochs` → `group_regression`) fits one OLS

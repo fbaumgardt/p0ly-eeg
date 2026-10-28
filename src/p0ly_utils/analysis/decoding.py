@@ -55,6 +55,7 @@ from mne.decoding import (
     cross_val_multiscore,
 )
 from numpy.typing import NDArray
+from pandas.api.types import infer_dtype
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import StratifiedKFold
 from sklearn.pipeline import make_pipeline
@@ -71,6 +72,8 @@ _MODES = ("time_resolved", "temporal_generalization")
 _SCORINGS = ("accuracy", "balanced_accuracy")
 _ESTIMATORS = ("logistic_regression",)
 _ESTIMATOR_DEFAULTS: dict[str, object] = {"C": 1.0, "max_iter": 1000, "class_weight": None}
+# pandas ``infer_dtype`` kinds scikit-learn can classify (one kind per column).
+_LABEL_KINDS = frozenset({"boolean", "integer", "floating", "string"})
 
 
 @dataclass
@@ -177,11 +180,28 @@ def _labels(epochs: mne.BaseEpochs, target: str) -> NDArray[np.object_]:
     column = epochs.metadata[target]
     if column.isna().any():
         raise ValueError(f"target {target!r} has missing labels; decoding never drops trials")
+    # scikit-learn rejects object arrays and mixed label kinds with opaque deep
+    # errors; classify the column here so the failure names the target.
+    kind = infer_dtype(column)
+    if kind not in _LABEL_KINDS:
+        raise ValueError(
+            f"target {target!r} has unsupported labels (dtype {column.dtype}, inferred "
+            f"{kind!r}); decoding needs one kind of categorical label (bool, integer, "
+            "float, or string), not mixed types"
+        )
     labels = column.to_numpy()
     if labels.shape[0] != len(epochs):
         raise ValueError(
             f"target {target!r} has {labels.shape[0]} labels for {len(epochs)} epochs"
         )
+    if labels.dtype == object:
+        if kind != "string":
+            raise ValueError(
+                f"target {target!r} has object-dtype labels (inferred {kind!r}); "
+                "scikit-learn's target validation rejects object arrays — store the "
+                "column as a numeric, bool, or string dtype"
+            )
+        labels = labels.astype(str)
     if np.issubdtype(labels.dtype, np.number) and not np.isfinite(labels).all():
         raise ValueError(f"target {target!r} has non-finite labels")
     return labels
@@ -261,8 +281,9 @@ def decode_epochs(
     ------
     ValueError
         Unknown target/mode/scoring/estimator/parameter, absent metadata,
-        missing or non-finite labels, fewer than two classes, a class with
-        fewer than ``n_splits`` trials, ``n_splits < 2``, or non-finite data.
+        missing or non-finite labels, mixed or object-dtype numeric labels,
+        fewer than two classes, a class with fewer than ``n_splits`` trials,
+        ``n_splits < 2``, or non-finite data.
     """
     if not isinstance(n_splits, int) or n_splits < 2:
         raise ValueError(f"n_splits must be an int >= 2, got {n_splits!r}")
@@ -318,8 +339,9 @@ def group_decoding(results: Sequence[DecodingResult]) -> GroupDecodingResult:
     ----------
     results : sequence of DecodingResult
         One result per subject (n >= 1). Every result must share the target,
-        mode, scoring, class order, chance level, time grid, and score shape;
-        mismatches fail loud instead of silently broadcasting.
+        mode, scoring, class order, chance level, time grid, score shape,
+        ``n_splits`` and ``seed``; mismatches fail loud instead of silently
+        broadcasting (or averaging subjects decoded with different CV).
 
     Returns
     -------
@@ -332,7 +354,7 @@ def group_decoding(results: Sequence[DecodingResult]) -> GroupDecodingResult:
         raise ValueError("no subject decoding results to aggregate")
     first = subjects[0]
     for index, result in enumerate(subjects[1:], start=2):
-        for field in ("target", "mode", "scoring", "classes"):
+        for field in ("target", "mode", "scoring", "classes", "n_splits", "seed"):
             if getattr(result, field) != getattr(first, field):
                 raise ValueError(
                     f"subject result {index} has {field}={getattr(result, field)!r}, "

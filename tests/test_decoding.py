@@ -187,6 +187,21 @@ def test_non_finite_labels_fail() -> None:
         decode_epochs(epochs, target="Condition", n_splits=5)
 
 
+def test_object_dtype_numeric_labels_fail() -> None:
+    epochs = _binary()
+    labels = pd.Series([0, 1] * 30, dtype=object)
+    epochs.metadata = pd.DataFrame({"Condition": labels})
+    with pytest.raises(ValueError, match=r"'Condition'.*object-dtype"):
+        decode_epochs(epochs, target="Condition", n_splits=5)
+
+
+def test_mixed_label_types_fail() -> None:
+    epochs = _binary()
+    epochs.metadata = pd.DataFrame({"Condition": pd.Series(["A", 1] * 30, dtype=object)})
+    with pytest.raises(ValueError, match=r"'Condition'.*mixed"):
+        decode_epochs(epochs, target="Condition", n_splits=5)
+
+
 def test_single_class_fails() -> None:
     with pytest.raises(ValueError, match="single class"):
         decode_epochs(_epochs(["A"] * 30), target="Condition", n_splits=5)
@@ -308,5 +323,9 @@ def test_group_decoding_rejects_mismatches() -> None:
         group_decoding([result, replace(result, times=result.times + 0.1)])
     with pytest.raises(ValueError, match="score shape"):
         group_decoding([result, replace(result, scores=result.scores[:-1])])
+    with pytest.raises(ValueError, match="n_splits"):
+        group_decoding([result, replace(result, n_splits=3)])
+    with pytest.raises(ValueError, match="seed"):
+        group_decoding([result, replace(result, seed=_SEED + 1)])
     with pytest.raises(ValueError, match="no subject"):
         group_decoding([])

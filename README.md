@@ -39,17 +39,15 @@ powers = band_powers(
 conn = spectral_connectivity(epochs, methods=["wpli", "coh"], fmin=4.0, fmax=45.0)
 average = group_connectivity([conn_subject_a, conn_subject_b], fisher_z=True)
 
-<<<<<<< HEAD
 from p0ly_utils.analysis import variability_epochs, group_variability
 
 variability = variability_epochs(epochs, domain="voltage", measures=["sd"])  # (ch, time)
 cohort = group_variability([variability_subject_a, variability_subject_b])
-=======
+
 # Within-subject decoding of a categorical metadata column (scaler + classifier
 # are cloned and fit on training folds only; scaler never sees held-out trials).
 subject = decode_epochs(epochs, target="Correct", n_splits=5, seed=20261020)
 cohort = group_decoding([subject_a, subject_b])  # equal subject weights
->>>>>>> 0bbb9f2 (Add within-subject temporal decoding analysis (US-030))
 ```
 
 Single-trial regression (`regression_epochs` → `group_regression`) fits one OLS

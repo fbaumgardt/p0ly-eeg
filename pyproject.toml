@@ -19,6 +19,7 @@ dependencies = [
     "pyyaml>=6.0",
     "scikit-learn>=1.9.0",
     "specparam>=2.0.0rc7",
+    "tensorpac==0.6.5",
 ]
 
 [build-system]

@@ -280,6 +280,18 @@ class TestDesignGuards:
         with pytest.raises(ValueError, match="not in the metadata"):
             regression_epochs(_epochs(), continuous=["ReactionTime"], categorical=[])
 
+    def test_term_name_collisions_fail_loud(self) -> None:
+        """A predictor must not overwrite another term's beta map."""
+        meta = _metadata()
+        meta["intercept"] = track(np.linspace(0.0, 1.0, _N_EPOCHS))
+        meta["Correct[True]"] = track(np.linspace(1.0, 0.0, _N_EPOCHS))
+        with pytest.raises(ValueError, match="term name collision"):
+            regression_epochs(_epochs(meta), continuous=["intercept"], categorical=[])
+        with pytest.raises(ValueError, match="term name collision"):
+            regression_epochs(
+                _epochs(meta), continuous=["Correct[True]"], categorical=["Correct"]
+            )
+
     def test_nonnumeric_continuous_column(self) -> None:
         epochs = _epochs()
         epochs.metadata = _metadata().assign(RT=["slow"] * _N_EPOCHS)

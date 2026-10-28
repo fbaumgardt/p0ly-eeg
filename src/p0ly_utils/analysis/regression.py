@@ -227,6 +227,13 @@ def _design_matrix(
         for level in levels[1:]:
             blocks.append((column_rows == level).astype(np.float64)[:, None])
             terms.append(f"{column}[{level}]")
+    collisions = sorted({term for term in terms if terms.count(term) > 1})
+    if collisions:
+        raise ValueError(
+            f"regression_epochs: term name collision — {collisions} would be "
+            f"generated more than once by predictors {[*continuous, *categorical]}; "
+            "rename the colliding metadata column"
+        )
     return np.hstack(blocks), terms, reference_levels
 
 
@@ -318,7 +325,9 @@ def regression_epochs(
     ------
     ValueError
         No/empty/mismatched metadata, no declared predictor, duplicate or
-        unknown predictor columns, non-numeric continuous values, null or
+        unknown predictor columns, colliding term names (e.g. a predictor
+        called ``intercept`` or one whose ``col[level]`` name is already
+        taken), non-numeric continuous values, null or
         non-finite predictors (excluded — so this never raises for those),
         a categorical column with fewer than two retained levels,
         non-finite responses, an unknown domain, too few rows or a

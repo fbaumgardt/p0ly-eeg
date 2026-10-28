@@ -33,19 +33,27 @@ fixture scale 100 epochs × 59 ch × 41 freqs × 358 times, complex128);
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 import mne
 import numpy as np
+from mne.stats import combine_adjacency
 from mne.time_frequency import AverageTFRArray, EpochsTFR
 from numpy.typing import NDArray
 
+from p0ly_utils.analysis.erp import ClusterPermStats
 from p0ly_utils.analysis.psd import _epoch_mask
+
+if TYPE_CHECKING:  # scipy arrives transitively via mne
+    from scipy.sparse import sparray, spmatrix
 
 __all__ = [
     "average_power",
     "freq_grid",
     "group_tfr",
     "itpc",
+    "itpc_z",
+    "tfr_cluster_permutation",
     "tfr_difference",
     "tfr_epochs",
     "tfr_power_epochs",
@@ -393,4 +401,113 @@ def tfr_difference(
         times=a.times,
         freqs=a.freqs,
         comment=f"{a.comment}-{b.comment}",
+    )
+
+
+def itpc_z(itpc: float | NDArray[np.float64]) -> float | NDArray[np.float64]:
+    """Fisher z-transform of ITPC values (US-026 statistics transform).
+
+    Raw ITPC is bounded ``[0, 1]`` and carries the small-n bias
+    (``E[ITPC | noise] ≈ 1/√n_epochs``); the cluster-permutation statistic
+    for ITPC contrasts runs on ``atanh(ITPC)`` differences so values compress
+    near the [0, 1] ceiling symmetrically around zero. Values are clipped to
+    ``[-1 + 1e-7, 1 - 1e-7]`` first — per-subject ITPC hits exactly 1.0 with
+    few epochs, and ``atanh(1)`` diverges.
+
+    Parameters
+    ----------
+    itpc : ndarray, shape (...)
+        ITPC values in ``[0, 1]`` (any dimensionality).
+
+    Returns
+    -------
+    ndarray, same shape
+        ``arctanh(clip(itpc))``; bounded by ``±atanh(1 - 1e-7) ≈ ±8.1``.
+    """
+    values = np.clip(np.asarray(itpc, dtype=np.float64), -1.0 + 1e-7, 1.0 - 1e-7)
+    return np.arctanh(values)
+
+
+def tfr_cluster_permutation(
+    X: NDArray[np.float64],
+    ch_adjacency: spmatrix | sparray,
+    *,
+    n_permutations: int = 1024,
+    tail: int = 0,
+    seed: int | None = None,
+) -> ClusterPermStats:
+    """One-sample cluster permutation over TFR difference grids (US-026).
+
+    Generalizes :func:`p0ly_utils.analysis.erp.cluster_permutation_1samp` to
+    the channel x freq x time space: per-subject difference maps stacked into
+    ``X (n_subjects, n_channels, n_freqs, n_times)`` are tested against zero
+    with :func:`mne.stats.spatio_temporal_cluster_1samp_test`. The 3-D
+    adjacency is built with :func:`mne.stats.combine_adjacency` — the sensor
+    adjacency for the channel axis plus regular lattices for the frequency
+    and time axes (the freq × time pixel grid flattening of the story spike;
+    a pixel's neighbors are its ±1 step in each axis).
+
+    Reuses :class:`~p0ly_utils.analysis.erp.ClusterPermStats` with widened
+    dimensionality: ``t_obs`` is ``(n_channels, n_freqs, n_times)`` and the
+    cluster tuples are ``(channel_indices, freq_indices, time_indices)``.
+
+    Parameters
+    ----------
+    X : ndarray, shape (n_subjects, n_channels, n_freqs, n_times)
+        Per-subject difference maps (e.g. ``itpc_z(cond_a) - itpc_z(cond_b)``
+        for ITPC, raw power difference for power), tested against zero.
+    ch_adjacency : sparse matrix/array, shape (n_channels, n_channels)
+        Sensor adjacency from :func:`p0ly_utils.analysis.erp.eeg_adjacency`.
+    n_permutations, tail, seed
+        As in :func:`cluster_permutation_1samp`; with few subjects the unique
+        sign-flip count ``2 ** (n_subjects - 1)`` bounds the null.
+
+    Returns
+    -------
+    ClusterPermStats
+        Statistics with ``(n_channels, n_freqs, n_times)`` orientation.
+
+    Raises
+    ------
+    ValueError
+        If ``X`` is not 4-D, has fewer than 2 subjects, or the sensor
+        adjacency shape does not match the channel count.
+    """
+    X = np.asarray(X, dtype=np.float64)
+    if X.ndim != 4:
+        raise ValueError(
+            f"tfr_cluster_permutation: X must be 4-D (n_subjects, n_channels, "
+            f"n_freqs, n_times), got shape {X.shape}"
+        )
+    n_subjects, n_channels, n_freqs, n_times = X.shape
+    if n_subjects < 2:
+        raise ValueError(
+            f"tfr_cluster_permutation: needs >= 2 subjects for a group test, "
+            f"got {n_subjects}"
+        )
+    if tuple(ch_adjacency.shape) != (n_channels, n_channels):
+        raise ValueError(
+            f"tfr_cluster_permutation: adjacency shape {ch_adjacency.shape} "
+            f"does not match X channel count ({n_channels},)"
+        )
+    adjacency = combine_adjacency(ch_adjacency, n_freqs, n_times)
+    t_obs, clusters, cluster_pv, h0 = mne.stats.spatio_temporal_cluster_1samp_test(
+        X,
+        threshold=None,
+        n_permutations=n_permutations,
+        tail=tail,
+        adjacency=adjacency,
+        seed=seed,
+        out_type="indices",
+    )
+    index_tuples = [(np.asarray(ch), np.asarray(fr), np.asarray(t)) for ch, fr, t in clusters]
+    return ClusterPermStats(
+        t_obs=np.asarray(t_obs),
+        clusters=index_tuples,
+        cluster_pvals=np.asarray(cluster_pv, dtype=np.float64),
+        h0=np.asarray(h0, dtype=np.float64),
+        n_permutations=n_permutations,
+        tail=tail,
+        threshold=None,
+        seed=seed,
     )

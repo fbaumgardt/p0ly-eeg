@@ -126,7 +126,7 @@ def _epoch_mask(epochs: mne.Epochs, condition_query: str | None) -> np.ndarray:
             f"condition query {condition_query!r} evaluated to a scalar — "
             "metadata must be a DataFrame with one row per epoch"
         )
-    return mask.to_numpy(dtype=bool)
+    return mask.to_numpy(dtype=bool)  # type: ignore[no-any-return]  # pandas Series.eval result
 
 
 def _validate_freqs(psd: NDArray[np.float64], freqs: NDArray[np.float64]) -> None:

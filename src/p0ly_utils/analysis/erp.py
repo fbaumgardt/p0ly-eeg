@@ -57,10 +57,14 @@ class ClusterPermStats:
     Attributes
     ----------
     t_obs : ndarray, shape (n_channels, n_times)
-        Observed t-statistic per channel-time point.
-    clusters : list of (channel_indices, time_indices)
+        Observed t-statistic per channel-time point. The TFR variant
+        (:func:`p0ly_utils.analysis.tfr_cluster_permutation`) widens this to
+        ``(n_channels, n_freqs, n_times)``.
+    clusters : list of tuple of index arrays
         One tuple of index arrays per suprathreshold cluster
-        (``out_type="indices"`` from the MNE API, reordered to channel-first).
+        (``out_type="indices"`` from the MNE API, reordered channel-first).
+        ERP: ``(channel_indices, time_indices)``; TFR: ``(channel_indices,
+        freq_indices, time_indices)``.
     cluster_pvals : ndarray, shape (n_clusters,)
         Permutation p-value for each cluster (same order as ``clusters``).
     h0 : ndarray, shape (n_max_stats,)
@@ -86,7 +90,7 @@ class ClusterPermStats:
     """
 
     t_obs: NDArray[np.float64]
-    clusters: list[tuple[NDArray[np.intp], NDArray[np.intp]]]
+    clusters: list[tuple[NDArray[np.intp], ...]]
     cluster_pvals: NDArray[np.float64]
     h0: NDArray[np.float64]
     n_permutations: int

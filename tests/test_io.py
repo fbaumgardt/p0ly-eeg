@@ -87,6 +87,11 @@ class TestLoadRawBrainVision:
         out = load_raw_brainvision(vhdr, montage="easycap-M10")
         assert out.get_montage() is not None
 
+    def test_montage_none_leaves_recording_without_one(self, tmp_path: Path) -> None:
+        vhdr = _write_brainvision(_synthetic_raw(), tmp_path, "002b", "rest")
+        out = load_raw_brainvision(vhdr, montage=None)
+        assert out.get_montage() is None
+
     def test_accepts_str_and_path(self, tmp_path: Path) -> None:
         vhdr = _write_brainvision(_synthetic_raw(), tmp_path, "003", "rest")
         from_str = load_raw_brainvision(str(vhdr))

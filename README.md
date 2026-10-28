@@ -1,57 +1,76 @@
 # p0ly-utils
 
-EEG utilities library (`p0ly_utils`) for preprocessing, epoching, and metadata parsing.
+EEG utilities library (`p0ly_utils`) for preprocessing, epoching, metadata parsing, and time/frequency/connectivity analyses of event-related EEG.
 
 ![CI](https://github.com/fbaumgardt/p0ly-utils/actions/workflows/ci.yml/badge.svg?branch=main)
 
-This library provides functionality that supports EEG analysis pipeline development. In particular it is used in p0ly-eeg -- a set of analysis workflows used for research at Boston University's Reinhart Lab for Computational Cognitive Neuroscience.
+The library powers [p0ly-flow](../p0ly-flow), a Snakemake pipeline used for my PhD research at Boston University's Reinhart Lab for Computational Cognitive Neuroscience. All functions are pure (stateless, no filesystem paths — pipeline-owned) and documented with array shapes.
 
-Part of the library is a module (`metadata`) that parses EEG event markers into structured metadata for detailed trial characterization. The abstract layer `core` and `parser` is instantiated with concrete experiment specs in the remaining files in the module. The experiments were chosen to showcase a broad range of different block- and trial-structures, and different levels of verbosity in event code definition (e.g. block and trial boundaries coded or implicit).
+## Analyses
 
-The `preprocessing` overlaps with a number of different Python packages that implement similar functionality, and perhaps more robustly (pyprep, autoreject, mne-faster). The purpose of maintaining our in-house solutions is the flexibility to handle edge cases of data corruption (e.g. from stimulation) and target highly specific signal-to-noise compromises (e.g. for very small or very large sample sizes). If you don't have specific technical requirements, please refer to these published and peer-reviewed packages.
+The `p0ly_utils.analysis` package (one submodule per domain, all importable from `p0ly_utils.analysis`):
 
+| Domain | Highlights |
+| :--- | :--- |
+| **ERP** (`erp`) | Per-condition evokeds, grand averages, condition differences, one-sample cluster-permutation statistics with EEG adjacency |
+| **PSD** (`psd`) | Welch spectra for raw/epoched data, per-condition spectra, band powers, aperiodic (1/f) fits via `specparam` |
+| **TFR** (`tfr`) | Time–frequency power and ITPC (+ z-score), group averages, condition differences, TFR cluster-permutation |
+| **Connectivity** (`connectivity`) | Spectral connectivity (wPLI, coherence, PLV) per condition, group averaging (plain or Fisher-z), band-averaged graph metrics (clustering, strength, path length), condition-difference adjacencies |
 
+```python
+from p0ly_utils.analysis import psd_by_condition, band_powers
+from p0ly_utils.analysis import spectral_connectivity, group_connectivity
+
+spectra = psd_by_condition(
+    epochs,  # carries by-trial metadata from the metadata module
+    queries={"correct": "Correct == True", "incorrect": "Correct == False"},
+    fmin=2.0, fmax=40.0, n_fft=2048,
+)
+powers = band_powers(
+    spectra["correct"].data, spectra["correct"].freqs,
+    bands={"theta": (4, 8), "alpha": (8, 13)}, norm_range=(2.0, 40.0),
+)
+
+conn = spectral_connectivity(epochs, methods=["wpli", "coh"], fmin=4.0, fmax=45.0)
+average = group_connectivity([conn_subject_a, conn_subject_b], fisher_z=True)
+```
+
+## Metadata parsing
+
+The `metadata` module parses EEG event markers into structured per-trial metadata for trial characterization. An abstract `core`/`parser` layer is instantiated with concrete experiment specs (`dotprobe`, `mgsearch`, `dmss`, `igt`, `intwm`, `simonfb`), each exposing `spec`, `timelocks`, `intervals`, and `get_metadata`. The experiments showcase a broad range of block/trial structures and event-code verbosity.
+
+```python
+from p0ly_utils.metadata import dotprobe, parse_metadata
+
+df = dotprobe.get_metadata(evt, ids)  # evt: MNE events array; ids: code -> id map
+# or: parse_metadata(dotprobe.spec, evt, ids)
+```
+
+## Preprocessing
+
+`preprocessing` (channel Z-scoring bad-channel detection, automated ICA with EOG artefact removal, sliding-window trial clipping) overlaps with published packages (pyprep, autoreject, mne-faster), perhaps more robustly there. We maintain in-house versions for flexibility on edge cases of data corruption (e.g. from stimulation) and specific signal-to-noise compromises (very small or large n). Without such requirements, you probably should prefer the published packages.
 
 ## Install
 
 Requires Python 3.13 and [uv](https://docs.astral.sh/uv/).
 
 ```bash
-uv sync
+uv sync              # runtime
+uv sync --group dev  # + development tools
 ```
-
-Editable install for development:
-
-```bash
-uv sync --group dev
-```
-
-## Usage
-
-```python
-from p0ly_utils.metadata import dotprobe, parse_metadata
-
-# evt: MNE events array; ids: Stim/ code -> numeric id map
-df = dotprobe.get_metadata(evt, ids)
-# or: parse_metadata(dotprobe.spec, evt, ids)
-```
-
-Experiment specs live under `p0ly_utils.metadata` (`dotprobe`, `mgsearch`, `dmss`, etc.), each exposing `spec`, `timelocks`, `intervals`, and `get_metadata`.
 
 ## Development
 
 ```bash
-uv sync --group dev
 uv run pytest
 uv run ruff check src tests
 uv run mypy
 uv run pre-commit install   # optional local hooks before commit
 ```
 
-## CI
-
-GitHub Actions on `main` runs ruff, scoped mypy (migrated metadata modules + tests), and pytest with coverage. Enable Actions in the repo settings on first push.
+CI (GitHub Actions, `main`) runs ruff, scoped mypy (migrated metadata modules + tests), and pytest with coverage. Enable Actions in the repo settings on first push.
 
 ## See also
 
+- [p0ly-flow](../p0ly-flow) — Snakemake pipeline orchestrating this library
 - [docs/DEFERRED_CI_AUTOMATION.md](docs/DEFERRED_CI_AUTOMATION.md) — automation to enable after legacy metadata and `dump_*` code are removed

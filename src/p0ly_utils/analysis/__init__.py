@@ -61,6 +61,12 @@ from p0ly_utils.analysis.tfr import (
     tfr_epochs,
     tfr_power_epochs,
 )
+from p0ly_utils.analysis.variability import (
+    GroupVariabilityResult,
+    VariabilityResult,
+    group_variability,
+    variability_epochs,
+)
 
 __all__ = [
     "AperiodicFit",
@@ -74,6 +80,8 @@ __all__ = [
     "GroupRegressionResult",
     "RegressionResult",
     "SubjectCFCResult",
+    "GroupVariabilityResult",
+    "VariabilityResult",
     "average_epochs",
     "average_power",
     "average_spectrum",
@@ -95,6 +103,7 @@ __all__ = [
     "group_psd",
     "group_regression",
     "group_tfr",
+    "group_variability",
     "graph_metrics",
     "itpc",
     "itpc_z",
@@ -107,4 +116,5 @@ __all__ = [
     "tfr_difference",
     "tfr_epochs",
     "tfr_power_epochs",
+    "variability_epochs",
 ]

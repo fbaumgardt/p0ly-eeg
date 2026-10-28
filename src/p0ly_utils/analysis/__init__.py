@@ -35,6 +35,12 @@ from p0ly_utils.analysis.psd import (
     psd_epochs,
     psd_raw,
 )
+from p0ly_utils.analysis.regression import (
+    GroupRegressionResult,
+    RegressionResult,
+    group_regression,
+    regression_epochs,
+)
 from p0ly_utils.analysis.tfr import (
     average_power,
     freq_grid,
@@ -53,6 +59,8 @@ __all__ = [
     "ConnectivityMatrices",
     "GraphMetrics",
     "GroupERPResult",
+    "GroupRegressionResult",
+    "RegressionResult",
     "average_epochs",
     "average_power",
     "average_spectrum",
@@ -69,6 +77,7 @@ __all__ = [
     "group_erp",
     "group_connectivity",
     "group_psd",
+    "group_regression",
     "group_tfr",
     "graph_metrics",
     "itpc",
@@ -76,6 +85,7 @@ __all__ = [
     "psd_by_condition",
     "psd_epochs",
     "psd_raw",
+    "regression_epochs",
     "spectral_connectivity",
     "tfr_cluster_permutation",
     "tfr_difference",

@@ -18,6 +18,7 @@ The `p0ly_utils.analysis` package (one submodule per domain, all importable from
 | **Connectivity** (`connectivity`) | Spectral connectivity (wPLI, coherence, PLV) per condition, group averaging (plain or Fisher-z), band-averaged graph metrics (clustering, strength, path length), condition-difference adjacencies |
 | **Regression** (`regression`) | Single-trial OLS beta maps per term (intercept, continuous + reference-coded categorical `Epochs.metadata` predictors) for voltage or per-epoch TFR power, explicit exclusion counts, equal-subject-weight cohort means |
 | **CFC** (`cfc`) | Within-channel PAC (tensorpac, Gaussian-copula default) and n:m phase-phase coupling (Hilbert phases, mean resultant length) with full surrogate nulls, equal-subject descriptive cohort means, and subject-unit condition contrasts with full-map max-statistic correction |
+| **Variability** (`variability`) | Across-trial sample SD for signed voltage, SD/Fano/CV for nonnegative TFR power, equal-subject-weight cohort maps with per-cell contributor counts |
 
 ```python
 from p0ly_utils.analysis import psd_by_condition, band_powers
@@ -35,6 +36,11 @@ powers = band_powers(
 
 conn = spectral_connectivity(epochs, methods=["wpli", "coh"], fmin=4.0, fmax=45.0)
 average = group_connectivity([conn_subject_a, conn_subject_b], fisher_z=True)
+
+from p0ly_utils.analysis import variability_epochs, group_variability
+
+variability = variability_epochs(epochs, domain="voltage", measures=["sd"])  # (ch, time)
+cohort = group_variability([variability_subject_a, variability_subject_b])
 ```
 
 Single-trial regression (`regression_epochs` → `group_regression`) fits one OLS

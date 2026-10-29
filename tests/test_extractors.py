@@ -6,7 +6,7 @@ from typing import Any
 import pandas as pd
 import pytest
 
-from p0ly_utils.metadata.core import (
+from p0ly_eeg.metadata.core import (
     BoolPresence,
     CodeLookup,
     DerivedColumn,

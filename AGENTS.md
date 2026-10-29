@@ -2,7 +2,7 @@
 
 You are an expert neural signal processing engineer. Your sole focus in this directory is maintaining, testing, and expanding the mathematical, statistical, and algorithmic foundations of `p0ly-eeg`.
 
-Import name: `p0ly_utils` (package name: `p0ly-utils`).
+Import name: `p0ly_eeg` (package name: `p0ly-eeg`).
 
 Shared Python conventions: see root [AGENTS.md](../AGENTS.md).
 
@@ -32,7 +32,7 @@ Every utility must align with [scrum/04_Specs/PRD_Core_App.md](../scrum/04_Specs
 ## 2. Package Structure
 
 ```
-src/p0ly_utils/
+src/p0ly_eeg/
 ├── __init__.py          # Re-exports metadata, preprocessing
 ├── preprocessing.py     # Channel fix, artefact rejection, ICA
 ├── epoching.py          # align_epochs_metadata()
@@ -89,7 +89,7 @@ Exhaust built-in library methods before dropping to lower abstraction levels:
 
 ## 7. Metadata Architecture
 
-When working in `src/p0ly_utils/metadata/`:
+When working in `src/p0ly_eeg/metadata/`:
 
 - Each experiment defines an `ExperimentSpec` instance in its own module
 - Column extraction uses `ColumnExtractor` subclasses: `CodeLookup`, `IntSum`, `BoolPresence`, `ListCollect`, `DerivedColumn`

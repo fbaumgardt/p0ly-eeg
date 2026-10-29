@@ -38,7 +38,7 @@ import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
 
-from p0ly_utils.analysis.tfr import freq_grid, tfr_epochs, tfr_power_epochs
+from p0ly_eeg.analysis.tfr import freq_grid, tfr_epochs, tfr_power_epochs
 
 __all__ = [
     "GroupRegressionResult",

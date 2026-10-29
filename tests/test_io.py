@@ -9,7 +9,7 @@ import pybv
 import pytest
 from mne_bids import BIDSPath, write_raw_bids
 
-from p0ly_utils.io import load_raw, load_raw_bids, load_raw_brainvision
+from p0ly_eeg.io import load_raw, load_raw_bids, load_raw_brainvision
 
 # ---------------------------------------------------------------------------
 # Helpers

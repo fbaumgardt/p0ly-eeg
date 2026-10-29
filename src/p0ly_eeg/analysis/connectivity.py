@@ -35,7 +35,7 @@ import numpy as np
 from mne_connectivity import spectral_connectivity_epochs
 from numpy.typing import NDArray
 
-from p0ly_utils.analysis.psd import _epoch_mask
+from p0ly_eeg.analysis.psd import _epoch_mask
 
 __all__ = [
     "ConnectivityMatrices",
@@ -222,14 +222,14 @@ def group_connectivity(
         Average in Fisher-z space instead of the plain arithmetic mean
         (default ``False``). Values are clipped to
         ``(-1 + 1e-7, 1 - 1e-7)`` — the same ceiling clip as
-        :func:`p0ly_utils.analysis.itpc_z` — so saturated couplings stay
+        :func:`p0ly_eeg.analysis.itpc_z` — so saturated couplings stay
         finite; the mean is ``tanh``-transformed back to coupling units.
 
     Returns
     -------
     ConnectivityMatrices
         Arithmetic mean across subjects per method (equal-weight, not
-        nave-weighted, mirroring :func:`p0ly_utils.analysis.group_tfr`).
+        nave-weighted, mirroring :func:`p0ly_eeg.analysis.group_tfr`).
 
     Raises
     ------

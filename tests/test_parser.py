@@ -8,8 +8,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from p0ly_utils.metadata import dmss, dotprobe, igt, intwm, mgsearch, simonfb
-from p0ly_utils.metadata.parser import events_from_raw, parse_metadata
+from p0ly_eeg.metadata import dmss, dotprobe, igt, intwm, mgsearch, simonfb
+from p0ly_eeg.metadata.parser import events_from_raw, parse_metadata
 
 
 def _events(rows: list[tuple[float, str]]) -> pd.DataFrame:

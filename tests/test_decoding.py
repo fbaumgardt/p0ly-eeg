@@ -1,4 +1,4 @@
-"""Tests for p0ly_utils.analysis.decoding (US-030).
+"""Tests for p0ly_eeg.analysis.decoding (US-030).
 
 All MNE objects are simulated in-memory (``EpochsArray``) — no fixture files,
 no ``@pytest.mark.slow``. The decodable fixture puts opposite class means in a
@@ -18,7 +18,7 @@ import pytest
 from mne import EpochsArray, create_info
 from sklearn.preprocessing import StandardScaler
 
-from p0ly_utils.analysis import decode_epochs, group_decoding
+from p0ly_eeg.analysis import decode_epochs, group_decoding
 
 _SFREQ = 100.0
 _TMIN = -0.1

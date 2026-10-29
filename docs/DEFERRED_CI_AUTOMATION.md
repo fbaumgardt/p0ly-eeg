@@ -5,7 +5,7 @@ Revisit when the repo no longer has legacy / WIP code paths (see checklist below
 ## Prerequisites (done = safe to enable stricter automation)
 
 - [ ] Metadata migration complete: `igt`, `intwm`, `simonfb` on `ExperimentSpec` + generic parser
-- [ ] Remove or archive `src/p0ly_utils/metadata/_legacy.py`
+- [ ] Remove or archive `src/p0ly_eeg/metadata/_legacy.py`
 - [ ] `dump_*.py` modules implemented and covered (or removed)
 - [ ] mypy runs on full `src/` and `tests/` with no path exclusions
 - [ ] Ruff clean on full tree (already true today)
@@ -38,13 +38,13 @@ Revisit when the repo no longer has legacy / WIP code paths (see checklist below
 
 ### Release workflow (optional)
 
-- Tag push → `uv build` → PyPI when publishing `p0ly-utils` publicly
+- Tag push → `uv build` → PyPI when publishing `p0ly-eeg` publicly
 
 ## mypy expansion (after legacy removal)
 
 1. Replace scoped `[tool.mypy] files = [...]` with `files = ["src", "tests"]` or package mode
 2. Remove `ignore_missing_imports` global flag; keep only `[[tool.mypy.overrides]]` for `mne` / `mne_icalabel` if needed
-3. Enable `disallow_untyped_defs = true` for `p0ly_utils.metadata` incrementally
+3. Enable `disallow_untyped_defs = true` for `p0ly_eeg.metadata` incrementally
 
 ## Reference
 

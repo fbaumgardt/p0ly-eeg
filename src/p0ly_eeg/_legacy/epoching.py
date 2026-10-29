@@ -7,9 +7,9 @@ import mne
 import numpy as np
 import pandas as pd
 
-import p0ly_utils.metadata as _meta_pkg
-from p0ly_utils.epoching import align_epochs_metadata
-from p0ly_utils.metadata import ExperimentSpec
+import p0ly_eeg.metadata as _meta_pkg
+from p0ly_eeg.epoching import align_epochs_metadata
+from p0ly_eeg.metadata import ExperimentSpec
 
 logger = logging.getLogger(__name__)
 

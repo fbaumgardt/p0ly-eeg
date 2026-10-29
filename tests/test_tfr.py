@@ -1,4 +1,4 @@
-"""Tests for p0ly_utils.analysis.tfr (US-012).
+"""Tests for p0ly_eeg.analysis.tfr (US-012).
 
 All data is simulated in memory per the AC "unit tests with simulated
 oscillatory epochs" — no fixture files, no ``@pytest.mark.slow``.
@@ -19,7 +19,7 @@ import pytest
 from mne import EpochsArray, create_info
 from mne.time_frequency import AverageTFR, EpochsTFR
 
-from p0ly_utils.analysis import (
+from p0ly_eeg.analysis import (
     ClusterPermStats,
     average_power,
     freq_grid,
@@ -342,19 +342,19 @@ class TestItpcZ:
     """Fisher z-transform: correctness, monotonicity, ceiling clipping."""
 
     def test_atanh_values(self) -> None:
-        from p0ly_utils.analysis import itpc_z
+        from p0ly_eeg.analysis import itpc_z
 
         got = itpc_z(np.array([0.0, 0.5]))
         assert np.allclose(got, np.arctanh([0.0, 0.5]))
 
     def test_ceiling_stays_finite(self) -> None:
-        from p0ly_utils.analysis import itpc_z
+        from p0ly_eeg.analysis import itpc_z
 
         got = itpc_z(np.array([1.0, 0.9999999999]))
         assert np.all(np.isfinite(got)) and np.all(got > 0)
 
     def test_ignores_sign_convention_of_input(self) -> None:
-        from p0ly_utils.analysis import itpc_z
+        from p0ly_eeg.analysis import itpc_z
 
         # Difference-map ITPC spans [-1, 1]; arctanh handles negatives too.
         assert np.isfinite(itpc_z(-0.9))
@@ -373,7 +373,7 @@ class TestTfrClusterPermutation:
 
     @pytest.fixture(scope="class")
     def effect_stats(self) -> ClusterPermStats:
-        from p0ly_utils.analysis import tfr_cluster_permutation
+        from p0ly_eeg.analysis import tfr_cluster_permutation
 
         rng = np.random.default_rng(_SEED)
         X = rng.normal(size=self._SHAPE)
@@ -402,7 +402,7 @@ class TestTfrClusterPermutation:
             assert ch_idx.ndim == freq_idx.ndim == time_idx.ndim == 1
 
     def test_fewer_than_two_subjects_fails_loud(self) -> None:
-        from p0ly_utils.analysis import tfr_cluster_permutation
+        from p0ly_eeg.analysis import tfr_cluster_permutation
 
         X = np.zeros((1, 4, 3, 5))
         ch_adj = np.eye(4, k=1, dtype=bool) | np.eye(4, k=-1, dtype=bool)
@@ -410,21 +410,21 @@ class TestTfrClusterPermutation:
             tfr_cluster_permutation(X, ch_adj)
 
     def test_3d_input_fails_loud(self) -> None:
-        from p0ly_utils.analysis import tfr_cluster_permutation
+        from p0ly_eeg.analysis import tfr_cluster_permutation
 
         ch_adj = np.eye(4, k=1, dtype=bool) | np.eye(4, k=-1, dtype=bool)
         with pytest.raises(ValueError, match="4-D"):
             tfr_cluster_permutation(np.zeros((8, 12, 5)), ch_adj)
 
     def test_adjacency_mismatch_fails_loud(self) -> None:
-        from p0ly_utils.analysis import tfr_cluster_permutation
+        from p0ly_eeg.analysis import tfr_cluster_permutation
 
         X = np.zeros((8, 4, 3, 5))
         with pytest.raises(ValueError, match="adjacency shape"):
             tfr_cluster_permutation(X, np.eye(3))
 
     def test_reproducible_with_seed(self) -> None:
-        from p0ly_utils.analysis import tfr_cluster_permutation
+        from p0ly_eeg.analysis import tfr_cluster_permutation
 
         rng = np.random.default_rng(_SEED)
         X = rng.normal(size=self._SHAPE)

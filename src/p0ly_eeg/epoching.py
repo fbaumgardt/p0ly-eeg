@@ -10,7 +10,7 @@ import pandas as pd
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from p0ly_utils.metadata.core import ExperimentSpec
+    from p0ly_eeg.metadata.core import ExperimentSpec
 
 
 def _match_onsets(

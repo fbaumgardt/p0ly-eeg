@@ -1,4 +1,4 @@
-"""Tests for p0ly_utils.analysis.erp (US-010).
+"""Tests for p0ly_eeg.analysis.erp (US-010).
 
 All MNE objects are simulated in-memory (EpochsArray / EvokedArray) per the
 US-010 AC "unit tests with simulated evoked data" — no fixture files, no
@@ -23,7 +23,7 @@ import pytest
 from mne import EpochsArray, EvokedArray, create_info
 from scipy import sparse
 
-from p0ly_utils.analysis import (
+from p0ly_eeg.analysis import (
     ClusterPermStats,
     GroupERPResult,
     average_epochs,

@@ -907,7 +907,7 @@ wheels = [
 ]
 
 [[package]]
-name = "p0ly-utils"
+name = "p0ly-eeg"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

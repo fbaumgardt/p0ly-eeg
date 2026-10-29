@@ -1,4 +1,4 @@
-"""Tests for p0ly_utils.analysis.connectivity (US-013).
+"""Tests for p0ly_eeg.analysis.connectivity (US-013).
 
 All data is simulated in memory per the AC "unit tests with small synthetic
 channel sets" — no fixture files, no ``@pytest.mark.slow``.
@@ -15,7 +15,7 @@ import numpy as np
 import pytest
 from mne import EpochsArray, create_info
 
-from p0ly_utils.analysis import (
+from p0ly_eeg.analysis import (
     ConnectivityMatrices,
     band_average,
     difference_connectivity,

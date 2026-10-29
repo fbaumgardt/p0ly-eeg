@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, cast
 
 import pandas as pd
 
-from p0ly_utils.metadata.core import DerivedColumn, ExperimentSpec
+from p0ly_eeg.metadata.core import DerivedColumn, ExperimentSpec
 
 if TYPE_CHECKING:
     import mne

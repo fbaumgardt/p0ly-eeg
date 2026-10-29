@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from p0ly_utils.metadata import dmss, dotprobe, intwm, mgsearch, simonfb
+from p0ly_eeg.metadata import dmss, dotprobe, intwm, mgsearch, simonfb
 
 DATA_DIR = Path(__file__).parent / "data"
 EXPECTED_DIR = DATA_DIR / "expected"

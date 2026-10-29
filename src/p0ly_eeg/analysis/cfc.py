@@ -90,7 +90,7 @@ from numpy.typing import NDArray
 from scipy.signal import butter, hilbert, sosfiltfilt
 from tensorpac import Pac
 
-from p0ly_utils.analysis.psd import _epoch_mask
+from p0ly_eeg.analysis.psd import _epoch_mask
 
 __all__ = [
     "CFCMap",
@@ -794,7 +794,7 @@ def group_cfc(
     """Equal-subject-weight descriptive cohort mean at any ``n_subjects >= 1``.
 
     Subject means are arithmetic and trial-count-blind (mirroring
-    :func:`p0ly_utils.analysis.group_tfr` / ``group_connectivity``); no
+    :func:`p0ly_eeg.analysis.group_tfr` / ``group_connectivity``); no
     p-values are averaged — this is ``"cohort_descriptive"`` evidence, not
     inference.
 

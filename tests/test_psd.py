@@ -1,4 +1,4 @@
-"""Tests for p0ly_utils.analysis.psd (US-011).
+"""Tests for p0ly_eeg.analysis.psd (US-011).
 
 All data is simulated in memory per the AC "unit tests with synthetic
 sinusoidal data" — no fixture files, no ``@pytest.mark.slow``.
@@ -20,7 +20,7 @@ from mne import EpochsArray, create_info
 from mne.io import RawArray
 from mne.time_frequency import Spectrum
 
-from p0ly_utils.analysis import (
+from p0ly_eeg.analysis import (
     AperiodicFit,
     average_spectrum,
     band_powers,

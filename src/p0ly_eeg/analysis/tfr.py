@@ -41,8 +41,8 @@ from mne.stats import combine_adjacency
 from mne.time_frequency import AverageTFRArray, EpochsTFR
 from numpy.typing import NDArray
 
-from p0ly_utils.analysis.erp import ClusterPermStats
-from p0ly_utils.analysis.psd import _epoch_mask
+from p0ly_eeg.analysis.erp import ClusterPermStats
+from p0ly_eeg.analysis.psd import _epoch_mask
 
 if TYPE_CHECKING:  # scipy arrives transitively via mne
     from scipy.sparse import sparray, spmatrix
@@ -438,7 +438,7 @@ def tfr_cluster_permutation(
 ) -> ClusterPermStats:
     """One-sample cluster permutation over TFR difference grids (US-026).
 
-    Generalizes :func:`p0ly_utils.analysis.erp.cluster_permutation_1samp` to
+    Generalizes :func:`p0ly_eeg.analysis.erp.cluster_permutation_1samp` to
     the channel x freq x time space: per-subject difference maps stacked into
     ``X (n_subjects, n_channels, n_freqs, n_times)`` are tested against zero
     with :func:`mne.stats.spatio_temporal_cluster_1samp_test`. The 3-D
@@ -447,7 +447,7 @@ def tfr_cluster_permutation(
     and time axes (the freq × time pixel grid flattening of the story spike;
     a pixel's neighbors are its ±1 step in each axis).
 
-    Reuses :class:`~p0ly_utils.analysis.erp.ClusterPermStats` with widened
+    Reuses :class:`~p0ly_eeg.analysis.erp.ClusterPermStats` with widened
     dimensionality: ``t_obs`` is ``(n_channels, n_freqs, n_times)`` and the
     cluster tuples are ``(channel_indices, freq_indices, time_indices)``.
 
@@ -457,7 +457,7 @@ def tfr_cluster_permutation(
         Per-subject difference maps (e.g. ``itpc_z(cond_a) - itpc_z(cond_b)``
         for ITPC, raw power difference for power), tested against zero.
     ch_adjacency : sparse matrix/array, shape (n_channels, n_channels)
-        Sensor adjacency from :func:`p0ly_utils.analysis.erp.eeg_adjacency`.
+        Sensor adjacency from :func:`p0ly_eeg.analysis.erp.eeg_adjacency`.
     n_permutations, tail, seed
         As in :func:`cluster_permutation_1samp`; with few subjects the unique
         sign-flip count ``2 ** (n_subjects - 1)`` bounds the null.

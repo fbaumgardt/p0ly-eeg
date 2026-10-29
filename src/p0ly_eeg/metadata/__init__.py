@@ -1,5 +1,5 @@
-from p0ly_utils.metadata import dmss, dotprobe, igt, intwm, mgsearch, simonfb
-from p0ly_utils.metadata.core import (
+from p0ly_eeg.metadata import dmss, dotprobe, igt, intwm, mgsearch, simonfb
+from p0ly_eeg.metadata.core import (
     BoolPresence,
     CodeLookup,
     DerivedColumn,
@@ -9,7 +9,7 @@ from p0ly_utils.metadata.core import (
     ListCollect,
     RTMeasure,
 )
-from p0ly_utils.metadata.parser import events_from_raw, parse_metadata
+from p0ly_eeg.metadata.parser import events_from_raw, parse_metadata
 
 __all__ = [
     "BoolPresence",

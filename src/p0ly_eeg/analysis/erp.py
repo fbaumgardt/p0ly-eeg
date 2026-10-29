@@ -58,7 +58,7 @@ class ClusterPermStats:
     ----------
     t_obs : ndarray, shape (n_channels, n_times)
         Observed t-statistic per channel-time point. The TFR variant
-        (:func:`p0ly_utils.analysis.tfr_cluster_permutation`) widens this to
+        (:func:`p0ly_eeg.analysis.tfr_cluster_permutation`) widens this to
         ``(n_channels, n_freqs, n_times)``.
     clusters : list of tuple of index arrays
         One tuple of index arrays per suprathreshold cluster

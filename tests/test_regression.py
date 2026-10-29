@@ -1,4 +1,4 @@
-"""Tests for p0ly_utils.analysis.regression (US-014).
+"""Tests for p0ly_eeg.analysis.regression (US-014).
 
 All data is simulated in memory (no fixture files, no ``@pytest.mark.slow``):
 synthetic voltage built as ``intercept + RT * slope + is_correct * shift``
@@ -20,7 +20,7 @@ import pytest
 from mne import EpochsArray, create_info
 from numpy.typing import NDArray
 
-from p0ly_utils.analysis import (
+from p0ly_eeg.analysis import (
     GroupRegressionResult,
     RegressionResult,
     freq_grid,

@@ -10,8 +10,8 @@ Design (recorded in ``scrum/01_Backlog/US-029_neural-variability.md``):
   Fano/CV describe relative dispersion of nonnegative quantities, so
   requesting them for voltage is a hard error, not a silent skip.
 - Power ``(n_epochs, n_channels, n_freqs, n_times)`` comes from the existing
-  complex TFR transform (:func:`~p0ly_utils.analysis.tfr.tfr_epochs` +
-  :func:`~p0ly_utils.analysis.tfr.tfr_power_epochs`) — one spectral
+  complex TFR transform (:func:`~p0ly_eeg.analysis.tfr.tfr_epochs` +
+  :func:`~p0ly_eeg.analysis.tfr.tfr_power_epochs`) — one spectral
   implementation, no second convolution. Negative or non-finite power
   rejects the entire input.
 - Ratio measures are defined **only where mean power > 0**: undefined cells
@@ -39,8 +39,8 @@ import mne
 import numpy as np
 from numpy.typing import NDArray
 
-from p0ly_utils.analysis.psd import _epoch_mask
-from p0ly_utils.analysis.tfr import freq_grid, tfr_epochs, tfr_power_epochs
+from p0ly_eeg.analysis.psd import _epoch_mask
+from p0ly_eeg.analysis.tfr import freq_grid, tfr_epochs, tfr_power_epochs
 
 __all__ = [
     "GroupVariabilityResult",

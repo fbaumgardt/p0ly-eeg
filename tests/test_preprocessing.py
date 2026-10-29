@@ -9,7 +9,7 @@ import pytest
 from mne.preprocessing import ICA
 from mne_icalabel import label_components
 
-from p0ly_utils.preprocessing import (
+from p0ly_eeg.preprocessing import (
     _minmax_zscore,
     _resolve_fit_window,
     artefact_rejection,

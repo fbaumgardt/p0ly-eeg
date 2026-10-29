@@ -1,5 +1,5 @@
 [project]
-name = "p0ly-utils"
+name = "p0ly-eeg"
 version = "0.1.0"
 description = "EEG utilities for preprocessing, epoching, and Psychtoolbox experiment metadata"
 readme = "README.md"
@@ -43,7 +43,7 @@ dev = [
 package = true
 
 [tool.uv.build-backend]
-module-name = "p0ly_utils"
+module-name = "p0ly_eeg"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -65,7 +65,7 @@ ignore = ["E501"]
 quote-style = "double"
 
 [tool.coverage.run]
-source = ["p0ly_utils"]
+source = ["p0ly_eeg"]
 
 [tool.coverage.report]
 fail_under = 0
@@ -74,8 +74,8 @@ show_missing = true
 [tool.mypy]
 python_version = "3.13"
 files = [
-    "src/p0ly_utils/io.py",
-    "src/p0ly_utils/metadata",
+    "src/p0ly_eeg/io.py",
+    "src/p0ly_eeg/metadata",
     "tests",
 ]
 namespace_packages = true

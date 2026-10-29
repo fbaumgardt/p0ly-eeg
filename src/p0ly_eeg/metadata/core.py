@@ -207,7 +207,7 @@ class ExperimentSpec:
         See PLAN_US005.md for the YAML format specification.
         """
         # Import here to avoid circular dependency at module level.
-        from p0ly_utils.metadata.transforms import TRANSFORM_REGISTRY
+        from p0ly_eeg.metadata.transforms import TRANSFORM_REGISTRY
 
         data = yaml.safe_load(Path(path).read_text())
 

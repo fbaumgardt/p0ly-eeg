@@ -1,4 +1,4 @@
-"""Tests for p0ly_utils.merge.merge_recordings (US-009)."""
+"""Tests for p0ly_eeg.merge.merge_recordings (US-009)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import mne
 import numpy as np
 import pytest
 
-from p0ly_utils.merge import merge_recordings
+from p0ly_eeg.merge import merge_recordings
 
 # ---------------------------------------------------------------------------
 # Fixtures

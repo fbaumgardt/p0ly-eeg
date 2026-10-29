@@ -8,13 +8,13 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from p0ly_utils.epoching import (
+from p0ly_eeg.epoching import (
     _match_onsets,
     align_epochs_metadata,
     epoch_with_metadata,
     validate_intervals,
 )
-from p0ly_utils.metadata import dmss, events_from_raw, igt, parse_metadata
+from p0ly_eeg.metadata import dmss, events_from_raw, igt, parse_metadata
 
 sorted_onsets = st.lists(
     st.floats(min_value=0, max_value=100, allow_nan=False, allow_infinity=False),

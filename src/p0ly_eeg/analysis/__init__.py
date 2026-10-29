@@ -1,11 +1,11 @@
-"""Analysis modules for p0ly_utils (US-010+): ERP, PSD, TFR, connectivity, ...
+"""Analysis modules for p0ly_eeg (US-010+): ERP, PSD, TFR, connectivity, ...
 
 Each analysis domain lives in its own submodule. All functions are pure
 (stateless, no filesystem paths) and documented with array shapes per
 [[SCHEMA]] §1.
 """
 
-from p0ly_utils.analysis.cfc import (
+from p0ly_eeg.analysis.cfc import (
     CFCContrastResult,
     CFCMap,
     GroupCFCResult,
@@ -14,7 +14,7 @@ from p0ly_utils.analysis.cfc import (
     estimate_cfc,
     group_cfc,
 )
-from p0ly_utils.analysis.connectivity import (
+from p0ly_eeg.analysis.connectivity import (
     ConnectivityMatrices,
     GraphMetrics,
     band_average,
@@ -23,13 +23,13 @@ from p0ly_utils.analysis.connectivity import (
     group_connectivity,
     spectral_connectivity,
 )
-from p0ly_utils.analysis.decoding import (
+from p0ly_eeg.analysis.decoding import (
     DecodingResult,
     GroupDecodingResult,
     decode_epochs,
     group_decoding,
 )
-from p0ly_utils.analysis.erp import (
+from p0ly_eeg.analysis.erp import (
     ClusterPermStats,
     GroupERPResult,
     average_epochs,
@@ -39,7 +39,7 @@ from p0ly_utils.analysis.erp import (
     grand_average,
     group_erp,
 )
-from p0ly_utils.analysis.psd import (
+from p0ly_eeg.analysis.psd import (
     AperiodicFit,
     average_spectrum,
     band_powers,
@@ -50,13 +50,13 @@ from p0ly_utils.analysis.psd import (
     psd_epochs,
     psd_raw,
 )
-from p0ly_utils.analysis.regression import (
+from p0ly_eeg.analysis.regression import (
     GroupRegressionResult,
     RegressionResult,
     group_regression,
     regression_epochs,
 )
-from p0ly_utils.analysis.tfr import (
+from p0ly_eeg.analysis.tfr import (
     average_power,
     freq_grid,
     group_tfr,
@@ -67,7 +67,7 @@ from p0ly_utils.analysis.tfr import (
     tfr_epochs,
     tfr_power_epochs,
 )
-from p0ly_utils.analysis.variability import (
+from p0ly_eeg.analysis.variability import (
     GroupVariabilityResult,
     VariabilityResult,
     group_variability,

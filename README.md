@@ -1,14 +1,14 @@
-# p0ly-utils
+# p0ly-eeg
 
-EEG utilities library (`p0ly_utils`) for preprocessing, epoching, metadata parsing, and time/frequency/connectivity/coupling analyses of event-related EEG.
+EEG utilities library (`p0ly_eeg`) for preprocessing, epoching, metadata parsing, and time/frequency/connectivity/coupling analyses of event-related EEG.
 
-![CI](https://github.com/fbaumgardt/p0ly-utils/actions/workflows/ci.yml/badge.svg?branch=main)
+![CI](https://github.com/fbaumgardt/p0ly-eeg/actions/workflows/ci.yml/badge.svg?branch=main)
 
 The library powers [p0ly-flow](../p0ly-flow), a Snakemake pipeline used for my PhD research at Boston University's Reinhart Lab for Computational Cognitive Neuroscience. All functions are pure (stateless, no filesystem paths — pipeline-owned) and documented with array shapes.
 
 ## Analyses
 
-The `p0ly_utils.analysis` package (one submodule per domain, all importable from `p0ly_utils.analysis`):
+The `p0ly_eeg.analysis` package (one submodule per domain, all importable from `p0ly_eeg.analysis`):
 
 | Domain | Highlights |
 | :--- | :--- |
@@ -22,9 +22,9 @@ The `p0ly_utils.analysis` package (one submodule per domain, all importable from
 | **Decoding** (`decoding`) | Within-subject cross-validated MVPA of categorical metadata columns: time-resolved scores `(n_times,)` and temporal-generalization maps `(n_train_times, n_test_times)`, equal-weight cohort means |
 
 ```python
-from p0ly_utils.analysis import psd_by_condition, band_powers
-from p0ly_utils.analysis import spectral_connectivity, group_connectivity
-from p0ly_utils.analysis import decode_epochs, group_decoding
+from p0ly_eeg.analysis import psd_by_condition, band_powers
+from p0ly_eeg.analysis import spectral_connectivity, group_connectivity
+from p0ly_eeg.analysis import decode_epochs, group_decoding
 
 spectra = psd_by_condition(
     epochs,  # carries by-trial metadata from the metadata module
@@ -39,7 +39,7 @@ powers = band_powers(
 conn = spectral_connectivity(epochs, methods=["wpli", "coh"], fmin=4.0, fmax=45.0)
 average = group_connectivity([conn_subject_a, conn_subject_b], fisher_z=True)
 
-from p0ly_utils.analysis import variability_epochs, group_variability
+from p0ly_eeg.analysis import variability_epochs, group_variability
 
 variability = variability_epochs(epochs, domain="voltage", measures=["sd"])  # (ch, time)
 cohort = group_variability([variability_subject_a, variability_subject_b])
@@ -62,7 +62,7 @@ empty or rank-deficient designs fail loud. Cohort results are equal-subject
 means, not pooled-trial estimates.
 
 ```python
-from p0ly_utils.analysis import regression_epochs, group_regression
+from p0ly_eeg.analysis import regression_epochs, group_regression
 
 result = regression_epochs(
     epochs, continuous=["RT"], categorical=["Correct"], domain="voltage",
@@ -80,7 +80,7 @@ cohort = group_regression([result_subject_a, result_subject_b])
 - `cfc_condition_contrast` → per-subject condition differences, sign flips at the subject unit, one full-map max-|statistic| family per method (`"cohort_subject_unit"`). It accepts observed `CFCMap` objects only, so subject p-values cannot be pooled into a cohort claim.
 
 ```python
-from p0ly_utils.analysis import estimate_cfc, group_cfc
+from p0ly_eeg.analysis import estimate_cfc, group_cfc
 
 subject = estimate_cfc(
     epochs,  # (n_epochs, n_channels, n_times)
@@ -99,7 +99,7 @@ Cross-channel/region pairs and between-cohort inference are out of scope.
 The `metadata` module parses EEG event markers into structured per-trial metadata for trial characterization. An abstract `core`/`parser` layer is instantiated with concrete experiment specs (`dotprobe`, `mgsearch`, `dmss`, `igt`, `intwm`, `simonfb`), each exposing `spec`, `timelocks`, `intervals`, and `get_metadata`. The experiments showcase a broad range of block/trial structures and event-code verbosity.
 
 ```python
-from p0ly_utils.metadata import dotprobe, parse_metadata
+from p0ly_eeg.metadata import dotprobe, parse_metadata
 
 df = dotprobe.get_metadata(evt, ids)  # evt: MNE events array; ids: code -> id map
 # or: parse_metadata(dotprobe.spec, evt, ids)

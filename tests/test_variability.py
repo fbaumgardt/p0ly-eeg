@@ -1,4 +1,4 @@
-"""Tests for p0ly_utils.analysis.variability (US-029).
+"""Tests for p0ly_eeg.analysis.variability (US-029).
 
 All data is simulated in memory with exactly known trial values — no fixture
 files, no ``@pytest.mark.slow``. Voltage fixtures are literal arrays so every
@@ -17,13 +17,13 @@ import pytest
 from mne import EpochsArray, create_info
 from numpy.typing import NDArray
 
-from p0ly_utils.analysis import (
+from p0ly_eeg.analysis import (
     GroupVariabilityResult,
     VariabilityResult,
     group_variability,
     variability_epochs,
 )
-from p0ly_utils.analysis.tfr import freq_grid, tfr_epochs, tfr_power_epochs
+from p0ly_eeg.analysis.tfr import freq_grid, tfr_epochs, tfr_power_epochs
 
 _SFREQ = 100.0
 _N_TIMES = 200  # 2 s epochs
@@ -234,7 +234,7 @@ class TestPower:
         self, value: float, match: str, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(
-            "p0ly_utils.analysis.variability.tfr_power_epochs",
+            "p0ly_eeg.analysis.variability.tfr_power_epochs",
             lambda tfr: np.full(tfr.data.shape, value),
         )
         with pytest.raises(ValueError, match=match):

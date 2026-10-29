@@ -1,4 +1,4 @@
-"""Tests for p0ly_utils.analysis.cfc (US-027).
+"""Tests for p0ly_eeg.analysis.cfc (US-027).
 
 All data is simulated in memory (small grids, few surrogates) so the fast
 suite stays small — the full null arrays are always retained but tiny.
@@ -31,7 +31,7 @@ import pandas as pd
 import pytest
 from mne import EpochsArray, create_info
 
-from p0ly_utils.analysis import (
+from p0ly_eeg.analysis import (
     CFCMap,
     SubjectCFCResult,
     cfc_condition_contrast,
